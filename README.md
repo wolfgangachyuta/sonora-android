@@ -1,33 +1,25 @@
 # SONORA
 
-**Your music, your space.**
+A thoughtful, local-first Android music player. Your music, your space.
 
-SONORA is a thoughtful Android music player for the music you already own. Built around a quiet, editorial interface, it puts your local library first.
-
-## Project
-
+## Current build — 0.2.0
 - Native Android app built with Kotlin and Jetpack Compose
-- Minimum Android version: Android 8.0 (API 26)
-- UI direction: minimalist, monochrome, artwork-led
-- Automated debug APK builds with GitHub Actions
+- Minimal monochrome interface with sage accents
+- Device audio permission and MediaStore library scanning
+- Search across track title, artist, and album
+- Local playback powered by AndroidX Media3 ExoPlayer
+- Queue-based next-track playback and mini-player controls
+- Library overview with track, album, and artist counts
+- Session favourites (persistent playlists and saved listening data are next)
 
-## Build
+## Build an APK
+Every push to `main` runs the GitHub Actions workflow. Download the `SONORA-debug` artifact from the successful run, extract it, and install the APK on an Android device.
 
-The GitHub Actions workflow builds a debug APK on every push to `main`, on pull requests, and when manually triggered.
-
-1. Open the **Actions** tab in this repository.
-2. Select **Android APK**.
-3. Open the latest successful workflow run.
-4. Download the **SONORA-debug** artifact.
-
-The APK is currently a UI foundation. Local media scanning and playback will be added in subsequent milestones.
+## Stack
+Kotlin · Jetpack Compose · Material 3 · AndroidX Media3 · Gradle · GitHub Actions
 
 ## Roadmap
-
-- [x] Initial Android project and Compose UI foundation
-- [x] Automated debug APK workflow
-- [ ] Local audio discovery and folder selection
-- [ ] Playback engine and queue
-- [ ] Library, albums, artists, and playlists
-- [ ] Lyrics, equalizer, and listening history
-- [ ] Statistics, themes, and visual polish
+1. Persistent library, favourites, playlists, and listening history (Room)
+2. Background playback, media notification, lock-screen controls, headset actions
+3. Album artwork extraction, artist/album views, queue editor
+4. Lyrics (.lrc), equalizer, themes, and listening statistics
