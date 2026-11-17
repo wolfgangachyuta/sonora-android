@@ -39,6 +39,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 private val Ink = Color(0xFF171817)
@@ -67,6 +68,7 @@ private fun SonoraApp() {
     var tracks by remember { mutableStateOf(emptyList<AudioTrack>()) }
     var currentTrack by remember { mutableStateOf<AudioTrack?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
+    var positionMs by remember { mutableStateOf(0L) }
     var selectedTab by remember { mutableStateOf("Home") }
     var query by remember { mutableStateOf("") }
     var hasPermission by remember {
@@ -92,6 +94,13 @@ private fun SonoraApp() {
         }
         player.addListener(listener)
         onDispose { player.removeListener(listener) }
+    }
+
+    LaunchedEffect(currentTrack, isPlaying) {
+        while (currentTrack != null) {
+            positionMs = player.currentPosition.coerceAtLeast(0L)
+            delay(500)
+        }
     }
 
     LaunchedEffect(loading, hasPermission) {
@@ -129,6 +138,21 @@ private fun SonoraApp() {
                     modifier = Modifier.weight(1f)
                 ) { tab ->
                     when (tab) {
+                        "Now Playing" -> currentTrack?.let { track ->
+                            NowPlayingScreen(
+                                track = track,
+                                isPlaying = isPlaying,
+                                positionMs = positionMs,
+                                durationMs = player.duration.takeIf { it > 0L } ?: track.durationMs,
+                                onBack = { selectedTab = "Home" },
+                                onToggle = { if (player.isPlaying) player.pause() else player.play() },
+                                onPrevious = { player.seekToPreviousMediaItem() },
+                                onNext = { player.seekToNextMediaItem() },
+                                onSeek = { player.seekTo(it) }
+                            )
+                        } ?: HomeScreen(tracks, currentTrack, isPlaying, ::playTrack, onScan = {
+                            if (hasPermission) loading = true else permissionLauncher.launch(audioPermission())
+                        }, onLibrary = { selectedTab = "Library" })
                         "Library" -> LibraryScreen(
                             tracks, loading, hasPermission, query,
                             onQuery = { query = it },
