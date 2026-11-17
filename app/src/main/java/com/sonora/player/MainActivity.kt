@@ -245,8 +245,7 @@ private fun HomeScreen(
                 Column(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Ink).padding(20.dp)
                 ) {
-                    Text("Make room
-for the music.", color = Paper, fontSize = 24.sp, lineHeight = 28.sp, fontWeight = FontWeight.Medium)
+                    Text("Make room\nfor the music.", color = Paper, fontSize = 24.sp, lineHeight = 28.sp, fontWeight = FontWeight.Medium)
                     Spacer(Modifier.height(8.dp))
                     Text("SONORA plays audio stored on your device.", color = Color.LightGray, fontSize = 11.sp)
                     Spacer(Modifier.height(16.dp))
