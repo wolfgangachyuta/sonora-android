@@ -103,6 +103,8 @@ private fun SonoraApp() {
                 currentTrack?.let { t ->
                     recentIds = (listOf(t.id.toString()) + recentIds.filterNot { it == t.id.toString() }).take(40)
                     preferences.edit().putString("recent_ids", recentIds.joinToString(",")).apply()
+                    playCounts = playCounts.toMutableMap().apply { put(t.id.toString(), (get(t.id.toString()) ?: 0) + 1) }
+                    preferences.edit().putString("play_counts", playCounts.entries.joinToString(",") { "${it.key}:${it.value}" }).apply()
                 }
             }
         }
@@ -133,8 +135,7 @@ private fun SonoraApp() {
         player.shuffleModeEnabled = shuffle
         player.prepare()
         player.play()
-        playCounts = playCounts.toMutableMap().apply { put(chosen.id.toString(), (get(chosen.id.toString()) ?: 0) + 1) }
-        preferences.edit().putString("play_counts", playCounts.entries.joinToString(",") { "${it.key}:${it.value}" }).apply()
+
     }
     fun play(track: AudioTrack) = startQueue(tracks, track)
     fun toggleFavorite(track: AudioTrack) {
