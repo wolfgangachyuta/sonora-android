@@ -45,14 +45,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
-private val Night = Color(0xFF101312)
+private val Night = Color(0xFF090B10)
 private val Cream = Color(0xFFF4F1E9)
-private val PanelLight = Color(0xFFE7E4DC)
-private val PanelDark = Color(0xFF1C211E)
+private val PanelLight = Color(0xFFE3E4E7)
+private val PanelDark = Color(0xFF171A21)
 private val MutedLight = Color(0xFF77796F)
 private val MutedDark = Color(0xFFA3AAA0)
-private val Accent = Color(0xFFB8D2C2)
-private val AccentDeep = Color(0xFF63816D)
+private val Accent = Color(0xFFB9D0FF)
+private val AccentDeep = Color(0xFF536CBA
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -87,6 +87,7 @@ private fun SonoraApp() {
     var playCounts by remember { mutableStateOf(preferences.getString("play_counts", "").orEmpty().split(",").filter { it.contains(":") }.associate { it.substringBefore(":") to (it.substringAfter(":").toIntOrNull() ?: 0 }) }
     var shuffle by remember { mutableStateOf(false) }
     var repeatMode by remember { mutableStateOf(Player.REPEAT_MODE_OFF) }
+    var playlists by remember { mutableStateOf(PlaylistStore(context).load())
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         hasPermission = granted
@@ -154,6 +155,22 @@ private fun SonoraApp() {
                         "Search" -> SearchPage(tracks, query, { query = it }, ::play, currentTrack, ink, panel, muted)
                         "Favourites" -> TrackCollectionPage("Favourites", tracks.filter { it.id.toString() in favorites }, ::play, currentTrack, favorites, ::toggleFavorite, ink, panel, muted)
                         "Statistics" -> StatsPage(tracks, playCounts, recentIds, ink, panel, muted)
+                        "Playlists" -> PlaylistsPage(playlists, tracks, ink, panel, muted, { name ->
+                            val clean = name.trim()
+                            if (clean.isNotEmpty() && playlists.none { it.name.equals(clean, true) }) {
+                                playlists = playlists + LocalPlaylist(java.util.UUID.randomUUID().toString(), clean, emptyList())
+                                PlaylistStore(context).save(playlists)
+                            }
+                        }, { playlistId ->
+                            playlists = playlists.filterNot { it.id == playlistId }
+                            PlaylistStore(context).save(playlists)
+                        }, { playlistId ->
+                            playlists = playlists.map { p -> if (p.id == playlistId) p.copy(trackIds = tracks.map { it.id.toString() }) else p }
+                            PlaylistStore(context).save(playlists)
+                        }, { playlist ->
+                            val songs = playlist.trackIds.mapNotNull { id -> tracks.firstOrNull { it.id.toString() == id } }
+                            songs.firstOrNull()?.let { startQueue(songs, it) }
+                        })
                         "Settings" -> SettingsPage(darkMode, { darkMode = it; preferences.edit().putBoolean("dark_mode", it).apply() }, shuffle, { shuffle = it; player.shuffleModeEnabled = it }, repeatMode, { repeatMode = it; player.repeatMode = it }, tracks.size, ink, panel, muted)
                         else -> HomePage(tracks, currentTrack, isPlaying, recentIds, ::play, ::requestScan, { tab = "Library" }, ink, panel, muted, darkMode)
                     }
@@ -385,7 +402,7 @@ private fun MiniPlayer(track: AudioTrack, playing: Boolean, position: Long, dura
 
 @Composable
 private fun BottomNav(selected: String, ink: Color, muted: Color, onSelect: (String) -> Unit) {
-    val destinations = listOf("Listen" to Icons.Rounded.Home, "Library" to Icons.Rounded.LibraryMusic, "Albums" to Icons.Rounded.Album, "Search" to Icons.Rounded.Search, "You" to Icons.Rounded.Person)
+    val destinations = listOf("Listen" to Icons.Rounded.Home, "Library" to Icons.Rounded.LibraryMusic, "Albums" to Icons.Rounded.Album, "Playlists" to Icons.Rounded.QueueMusic, "You" to Icons.Rounded.Person)
     Row(Modifier.fillMaxWidth().padding(horizontal = 5.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
         destinations.forEach { (label, icon) ->
             val actual = if (label == "You") "Statistics" else label
