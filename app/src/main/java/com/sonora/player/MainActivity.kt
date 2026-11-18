@@ -75,7 +75,8 @@ private fun SonoraApp() {
         mutableStateOf(hasAudioPermission(context))
     }
     var loading by remember { mutableStateOf(false) }
-    var favorites by remember { mutableStateOf(setOf<Long>()) }
+    val preferences = remember { context.getSharedPreferences("sonora_library", android.content.Context.MODE_PRIVATE) }
+    var favorites by remember { mutableStateOf(preferences.getString("favorite_ids", "").orEmpty().split(",").filter { it.isNotBlank() }.mapNotNull { it.toLongOrNull() }.toSet()) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -163,7 +164,10 @@ private fun SonoraApp() {
                             onPlay = ::playTrack,
                             currentTrack = currentTrack,
                             favorites = favorites,
-                            onFavorite = { id -> favorites = if (id in favorites) favorites - id else favorites + id }
+                            onFavorite = { id ->
+                                favorites = if (id in favorites) favorites - id else favorites + id
+                                preferences.edit().putString("favorite_ids", favorites.joinToString(",")).apply()
+                            }
                         )
                         "Search" -> SearchScreen(
                             tracks, query, { query = it }, ::playTrack, currentTrack
