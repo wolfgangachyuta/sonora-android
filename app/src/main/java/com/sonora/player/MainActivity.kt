@@ -518,7 +518,7 @@ private fun DashboardTile(label: String, value: String, modifier: Modifier, ink:
 }
 @Composable
 private fun FilterPill(label: String, active: Boolean, ink: Color, panel: Color, onClick: () -> Unit) {
-    Text(label, modifier = Modifier.clip(RoundedCornerShape(50)).background(if (active) ink else panel).clickable(onClick).padding(horizontal = 13.dp, vertical = 8.dp), color = if (active) Cream else ink, fontSize = 9.sp)
+    Text(label, modifier = Modifier.clip(RoundedCornerShape(50)).background(if (active) ink else panel).clickable { onClick() }.padding(horizontal = 13.dp, vertical = 8.dp), color = if (active) Cream else ink, fontSize = 9.sp)
 }
 @Composable
 private fun SearchField(value: String, onValue: (String) -> Unit, ink: Color, panel: Color, muted: Color) {
