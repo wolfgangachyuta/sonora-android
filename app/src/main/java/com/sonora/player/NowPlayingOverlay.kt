@@ -25,7 +25,7 @@ fun NowPlayingOverlay(
     ink: Color, paper: Color, panel: Color, muted: Color, dark: Boolean,
     onToggle: () -> Unit, onPrevious: () -> Unit, onNext: () -> Unit, onSeek: (Long) -> Unit,
     onClose: () -> Unit, shuffle: Boolean, onShuffle: (Boolean) -> Unit, repeat: Int, onRepeat: (Int) -> Unit,
-    favorite: Boolean, onFavorite: () -> Unit
+    favorite: Boolean, onFavorite: () -> Unit, onLyrics: () -> Unit
 ) {
     Surface(Modifier.fillMaxSize(), color = paper) {
         Column(Modifier.fillMaxSize().padding(horizontal = 22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -62,6 +62,8 @@ fun NowPlayingOverlay(
             }
             Spacer(Modifier.height(26.dp))
             Text("ON-DEVICE AUDIO · YOUR COLLECTION", fontSize = 8.sp, letterSpacing = 1.4.sp, color = muted)
+            Spacer(Modifier.height(10.dp))
+            TextButton(onClick = onLyrics) { Icon(Icons.Rounded.MusicNote, null); Spacer(Modifier.width(5.dp)); Text("LYRICS") }
             Spacer(Modifier.height(18.dp))
         }
     }
