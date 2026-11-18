@@ -167,6 +167,9 @@ private fun SonoraApp() {
                         }, { playlistId, trackIds ->
                             playlists = playlists.map { p -> if (p.id == playlistId) p.copy(trackIds = (p.trackIds + trackIds).distinct()) else p }
                             PlaylistStore(context).save(playlists)
+                        }, { playlistId, trackId ->
+                            playlists = playlists.map { p -> if (p.id == playlistId) p.copy(trackIds = p.trackIds.filterNot { it == trackId }) else p }
+                            PlaylistStore(context).save(playlists)
                         }, { playlist ->
                             val songs = playlist.trackIds.mapNotNull { id -> tracks.firstOrNull { it.id.toString() == id } }
                             songs.firstOrNull()?.let { startQueue(songs, it) }
@@ -341,6 +344,7 @@ private fun PlaylistsPage(
     onCreate: (String) -> Unit,
     onDelete: (String) -> Unit,
     onPopulate: (String, List<String>) -> Unit,
+    onRemoveTrack: (String, String) -> Unit,
     onPlay: (LocalPlaylist) -> Unit
 ) {
     var showCreate by remember { mutableStateOf(false) }
@@ -377,6 +381,12 @@ private fun PlaylistsPage(
                     }
                 }
                 IconButton(onClick = { onPlay(playlist) }) { Icon(Icons.Rounded.PlayArrow, "Play playlist", tint = ink) }
+            }
+            contained.forEach { song ->
+                Row(Modifier.fillMaxWidth().padding(start = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(song.title, Modifier.weight(1f), fontSize = 10.sp, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    IconButton(onClick = { onRemoveTrack(playlist.id, song.id.toString()) }, modifier = Modifier.size(30.dp)) { Icon(Icons.Rounded.Close, "Remove song", tint = muted, modifier = Modifier.size(14.dp)) }
+                }
             }
         }
         item { Spacer(Modifier.height(8.dp)) }
