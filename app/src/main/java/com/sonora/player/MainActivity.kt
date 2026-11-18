@@ -332,6 +332,64 @@ private fun TrackCollectionPage(title: String, tracks: List<AudioTrack>, onPlay:
 }
 
 @Composable
+private fun PlaylistsPage(
+    playlists: List<LocalPlaylist>,
+    tracks: List<AudioTrack>,
+    ink: Color,
+    panel: Color,
+    muted: Color,
+    onCreate: (String) -> Unit,
+    onDelete: (String) -> Unit,
+    onPopulate: (String) -> Unit,
+    onPlay: (LocalPlaylist) -> Unit
+) {
+    var showCreate by remember { mutableStateOf(false) }
+    var name by remember { mutableStateOf("") }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Playlists", fontSize = 32.sp, fontWeight = FontWeight.Medium, color = ink, letterSpacing = (-1).sp)
+                    Text("CURATE YOUR OWN SOUNDTRACKS", fontSize = 9.sp, color = muted, letterSpacing = 1.3.sp)
+                }
+                Button(onClick = { name = ""; showCreate = true }, shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = ink, contentColor = Cream)) {
+                    Icon(Icons.Rounded.Add, null, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(4.dp)); Text("NEW", fontSize = 10.sp)
+                }
+            }
+        }
+        if (playlists.isEmpty()) item { EmptyCard("Make a playlist.", "Create a collection for a mood, moment, journey, or album of memories.", "CREATE PLAYLIST", { showCreate = true }, ink, panel, muted) }
+        items(playlists, key = { it.id }) { playlist ->
+            val contained = playlist.trackIds.mapNotNull { id -> tracks.firstOrNull { it.id.toString() == id } }
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(panel).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(68.dp).clip(RoundedCornerShape(15.dp)).background(Brush.linearGradient(listOf(Accent, Color(0xFF52618B)))), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Rounded.QueueMusic, null, tint = Night, modifier = Modifier.size(30.dp))
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(playlist.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("${contained.size} tracks", fontSize = 10.sp, color = muted)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = { onPopulate(playlist.id) }, contentPadding = PaddingValues(0.dp)) { Text("ADD LIBRARY", fontSize = 8.sp) }
+                        Text("·", color = muted)
+                        TextButton(onClick = { onDelete(playlist.id) }, contentPadding = PaddingValues(0.dp)) { Text("DELETE", fontSize = 8.sp) }
+                    }
+                }
+                IconButton(onClick = { onPlay(playlist) }) { Icon(Icons.Rounded.PlayArrow, "Play playlist", tint = ink) }
+            }
+        }
+        item { Spacer(Modifier.height(8.dp)) }
+    }
+    if (showCreate) {
+        AlertDialog(onDismissRequest = { showCreate = false },
+            title = { Text("New playlist") },
+            text = { OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Playlist name") }, singleLine = true) },
+            confirmButton = { TextButton(onClick = { onCreate(name); showCreate = false }) { Text("Create") } },
+            dismissButton = { TextButton(onClick = { showCreate = false }) { Text("Cancel") } }
+        )
+    }
+}
+
+@Composable
 private fun StatsPage(tracks: List<AudioTrack>, counts: Map<String, Int>, recentIds: List<String>, ink: Color, panel: Color, muted: Color) {
     val totalPlays = counts.values.sum()
     val mostPlayed = tracks.sortedByDescending { counts[it.id.toString()] ?: 0 }.take(5).filter { (counts[it.id.toString()] ?: 0) > 0 }
