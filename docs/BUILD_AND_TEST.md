@@ -90,3 +90,10 @@ A successful `assembleDebug` verifies compilation and APK packaging. It does not
 - **A file is not listed:** some file types or folders may not be indexed by the device's media provider.
 - **APK cannot be installed:** remove an older incompatible debug build and retry; check Android's unknown-app installation permission.
 - **Build fails in CI:** open the failed job's logs, identify the first compiler/Gradle error, fix that cause, and rerun the workflow. Do not treat a queued or running job as a successful build.
+
+
+## Phase 3 additions requiring runtime testing
+
+- Favourites should remain after restarting the app.
+- The new service is declared for media playback and can host a MediaSession.
+- Background playback is not complete yet: the current activity still owns its playback instance until the MediaController migration is finished.
