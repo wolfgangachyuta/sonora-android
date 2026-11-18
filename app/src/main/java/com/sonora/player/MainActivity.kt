@@ -389,6 +389,17 @@ private fun PlaylistsPage(
             dismissButton = { TextButton(onClick = { showCreate = false }) { Text("Cancel") } }
         )
     }
+    if (pickerId != null) {
+        AlertDialog(onDismissRequest = { pickerId = null }, title = { Text("Add tracks") },
+            text = { LazyColumn(Modifier.heightIn(max = 420.dp)) { items(tracks, key = { it.id }) { track ->
+                Row(Modifier.fillMaxWidth().clickable { pickedIds = if (track.id.toString() in pickedIds) pickedIds - track.id.toString() else pickedIds + track.id.toString() }, verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = track.id.toString() in pickedIds, onCheckedChange = { checked -> pickedIds = if (checked) pickedIds + track.id.toString() else pickedIds - track.id.toString() })
+                    Column(Modifier.weight(1f)) { Text(track.title, color = ink, fontSize = 12.sp); Text(track.artist, color = muted, fontSize = 9.sp) }
+                }
+            } } },
+            confirmButton = { TextButton(onClick = { onPopulate(pickerId!!, pickedIds.toList()); pickerId = null }) { Text("Add " + pickedIds.size) } },
+            dismissButton = { TextButton(onClick = { pickerId = null }) { Text("Cancel") } })
+    }
 }
 
 @Composable
