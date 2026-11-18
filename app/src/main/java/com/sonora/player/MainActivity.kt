@@ -164,8 +164,8 @@ private fun SonoraApp() {
                         }, { playlistId ->
                             playlists = playlists.filterNot { it.id == playlistId }
                             PlaylistStore(context).save(playlists)
-                        }, { playlistId ->
-                            playlists = playlists.map { p -> if (p.id == playlistId) p.copy(trackIds = tracks.map { it.id.toString() }) else p }
+                        }, { playlistId, trackIds ->
+                            playlists = playlists.map { p -> if (p.id == playlistId) p.copy(trackIds = (p.trackIds + trackIds).distinct()) else p }
                             PlaylistStore(context).save(playlists)
                         }, { playlist ->
                             val songs = playlist.trackIds.mapNotNull { id -> tracks.firstOrNull { it.id.toString() == id } }
