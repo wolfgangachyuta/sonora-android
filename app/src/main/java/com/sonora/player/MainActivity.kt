@@ -19,6 +19,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -88,6 +89,11 @@ private fun SonoraApp() {
     var shuffle by remember { mutableStateOf(false) }
     var repeatMode by remember { mutableStateOf(Player.REPEAT_MODE_OFF) }
     var playlists by remember { mutableStateOf(PlaylistStore(context).load()) }
+    var lyricLines by remember { mutableStateOf(emptyList<LyricLine>())
+
+    val lyricLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) runCatching { context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { LyricsRepository.parseLrc(it.readText()) } }.getOrNull()?.let { lyricLines = it }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         hasPermission = granted
@@ -175,6 +181,7 @@ private fun SonoraApp() {
                             val songs = playlist.trackIds.mapNotNull { id -> tracks.firstOrNull { it.id.toString() == id } }
                             songs.firstOrNull()?.let { startQueue(songs, it) }
                         })
+                        "Lyrics" -> LyricsPage(lyricLines, positionMs, ink, panel, muted, { lyricLauncher.launch(arrayOf("text/*", "application/octet-stream")) }, { tab = "Now Playing" })
                         "Equalizer" -> EqualizerPage(player.audioSessionId, ink, panel, muted, { tab = "Settings" })
                         "Settings" -> SettingsPage(darkMode, { darkMode = it; preferences.edit().putBoolean("dark_mode", it).apply() }, shuffle, { shuffle = it; player.shuffleModeEnabled = it }, repeatMode, { repeatMode = it; player.repeatMode = it }, tracks.size, ink, panel, muted, { tab = "Equalizer" })
                         else -> HomePage(tracks, currentTrack, isPlaying, recentIds, ::play, ::requestScan, { tab = "Library" }, ink, panel, muted, darkMode)
@@ -187,7 +194,7 @@ private fun SonoraApp() {
                 BottomNav(tab, ink, muted) { tab = it }
             }
             if (tab == "Now Playing" && currentTrack != null) {
-                NowPlayingOverlay(currentTrack!!, isPlaying, positionMs, player.duration.takeIf { it > 0 } ?: currentTrack!!.durationMs, ink, paper, panel, muted, darkMode, { if (player.isPlaying) player.pause() else player.play() }, { player.seekToPreviousMediaItem() }, { player.seekToNextMediaItem() }, { player.seekTo(it) }, { tab = "Listen" }, shuffle, { shuffle = it; player.shuffleModeEnabled = it }, repeatMode, { repeatMode = it; player.repeatMode = it }, currentTrack!!.id.toString() in favorites, { toggleFavorite(currentTrack!!) })
+                NowPlayingOverlay(currentTrack!!, isPlaying, positionMs, player.duration.takeIf { it > 0 } ?: currentTrack!!.durationMs, ink, paper, panel, muted, darkMode, { if (player.isPlaying) player.pause() else player.play() }, { player.seekToPreviousMediaItem() }, { player.seekToNextMediaItem() }, { player.seekTo(it) }, { tab = "Listen" }, shuffle, { shuffle = it; player.shuffleModeEnabled = it }, repeatMode, { repeatMode = it; player.repeatMode = it }, currentTrack!!.id.toString() in favorites, { toggleFavorite(currentTrack!!) }, { tab = "Lyrics" })
             }
         }
     }
@@ -439,6 +446,17 @@ private fun StatsPage(tracks: List<AudioTrack>, counts: Map<String, Int>, recent
     }
 }
 
+@Composable
+private fun LyricsPage(lines: List<LyricLine>, position: Long, ink: Color, panel: Color, muted: Color, onOpen: () -> Unit, onBack: () -> Unit) {
+    val current = lines.indexOfLast { it.timeMs <= position }.coerceAtLeast(0)
+    val state = rememberLazyListState()
+    LaunchedEffect(current, lines.size) { if (lines.isNotEmpty()) state.animateScrollToItem(current) }
+    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back", tint = ink) }; Text("Lyrics", fontSize = 30.sp, color = ink, modifier = Modifier.weight(1f)); Button(onClick = onOpen) { Text("OPEN .LRC") } }
+        if (lines.isEmpty()) { EmptyCard("Lyrics are missing.", "Choose a synced .lrc file from your device to display and follow lyrics.", "OPEN LYRICS", onOpen, ink, panel, muted) }
+        else LazyColumn(state = state, modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(18.dp), contentPadding = PaddingValues(vertical = 22.dp)) { items(lines.size) { index -> Text(lines[index].text, fontSize = if (index == current) 22.sp else 16.sp, fontWeight = if (index == current) FontWeight.SemiBold else FontWeight.Normal, color = if (index == current) ink else muted.copy(alpha = .65f), modifier = Modifier.fillMaxWidth()) } }
+    }
+}
 @Composable
 private fun EqualizerPage(audioSessionId: Int, ink: Color, panel: Color, muted: Color, onBack: () -> Unit) {
     val eq = remember(audioSessionId) { EqualizerController(audioSessionId) }
