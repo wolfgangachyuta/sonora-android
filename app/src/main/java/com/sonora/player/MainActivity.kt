@@ -52,7 +52,7 @@ private val PanelDark = Color(0xFF171A21)
 private val MutedLight = Color(0xFF77796F)
 private val MutedDark = Color(0xFFA3AAA0)
 private val Accent = Color(0xFFB9D0FF)
-private val AccentDeep = Color(0xFF536CBA
+val AccentDeep = Color(0xFF536CBA)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -303,7 +303,7 @@ private fun SearchPage(tracks: List<AudioTrack>, query: String, onQuery: (String
 }
 
 @Composable
-private fun GroupedPage<T>(title: String, groups: List<Pair<String, List<AudioTrack>>>, subtitle: (Pair<String, List<AudioTrack>>) -> String, onPlay: (Pair<String, List<AudioTrack>>) -> Unit, ink: Color, panel: Color, muted: Color) {
+private fun <T> GroupedPage(title: String, groups: List<Pair<String, List<AudioTrack>>>, subtitle: (Pair<String, List<AudioTrack>>) -> String, onPlay: (Pair<String, List<AudioTrack>>) -> Unit, ink: Color, panel: Color, muted: Color) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item { Column { Text(title, fontSize = 32.sp, fontWeight = FontWeight.Medium, color = ink, letterSpacing = (-1).sp); Text("${groups.size} ${title.uppercase()}", fontSize = 9.sp, color = muted, letterSpacing = 1.4.sp) } }
         if (groups.isEmpty()) item { EmptyCard("Your collection is empty.", "Scan your device to build your collection.", "GO TO LIBRARY", {}, ink, panel, muted) }
