@@ -444,7 +444,7 @@ private fun EqualizerPage(audioSessionId: Int, ink: Color, panel: Color, muted: 
     val eq = remember(audioSessionId) { EqualizerController(audioSessionId) }
     DisposableEffect(eq) { onDispose { eq.release() } }
     var enabled by remember(eq) { mutableStateOf(eq.enabled) }
-    var levels by remember(eq) { mutableStateOf((0 until eq.bands).map { eq.level(it).toFloat() })
+    var levels by remember(eq) { mutableStateOf((0 until eq.bands).map { eq.level(it).toFloat() }) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back", tint = ink) }; Text("Equalizer", fontSize = 30.sp, color = ink) } }
         item { SettingToggle("Equalizer", "Adjust the device audio effect", enabled, { enabled = it; eq.setEnabled(it) }, ink, panel, muted) }
