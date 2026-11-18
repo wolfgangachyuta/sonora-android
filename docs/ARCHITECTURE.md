@@ -50,6 +50,15 @@ The manifest declares audio-read permissions only. SONORA's current core feature
 
 Any future feature that introduces network access, analytics, or additional sensitive permissions must document why it is needed and minimise collection.
 
+## Phase 3 groundwork (in progress)
+
+- Added the Media3 Session dependency.
+- Declared a foreground media-playback service in the Android manifest with the media-playback service permissions.
+- Added SonoraPlaybackService to host ExoPlayer and a MediaSession.
+- Persisted favourite track IDs using SharedPreferences so they survive process restarts.
+
+**Important:** The new service is groundwork only. The current screen still creates and controls its own ExoPlayer; MediaController connection and transferring playback into the service are the remaining integration steps. Background playback is not yet considered complete.
+
 ## Planned architecture evolution
 
 The next architectural step is to separate responsibilities:
