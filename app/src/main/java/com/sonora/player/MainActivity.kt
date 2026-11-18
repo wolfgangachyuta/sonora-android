@@ -87,7 +87,7 @@ private fun SonoraApp() {
     var playCounts by remember { mutableStateOf(preferences.getString("play_counts", "").orEmpty().split(",").filter { it.contains(":") }.associate { it.substringBefore(":") to (it.substringAfter(":").toIntOrNull() ?: 0 }) }
     var shuffle by remember { mutableStateOf(false) }
     var repeatMode by remember { mutableStateOf(Player.REPEAT_MODE_OFF) }
-    var playlists by remember { mutableStateOf(PlaylistStore(context).load())
+    var playlists by remember { mutableStateOf(PlaylistStore(context).load()) }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         hasPermission = granted
@@ -487,7 +487,7 @@ private fun TrackRow(track: AudioTrack, active: Boolean, onClick: () -> Unit, in
 }
 
 @Composable
-private fun AlbumArtwork(albumId: Long?, modifier: Modifier = Modifier, darkFallback: Boolean = false) {
+fun AlbumArtwork(albumId: Long?, modifier: Modifier = Modifier, darkFallback: Boolean = false) {
     val context = LocalContext.current
     var bitmap by remember(albumId) { mutableStateOf<android.graphics.Bitmap?>(null) }
     LaunchedEffect(albumId) {
@@ -538,4 +538,4 @@ private fun EmptyCard(title: String, desc: String, action: String, onAction: () 
 }
 private fun audioPermission(): String = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO else Manifest.permission.READ_EXTERNAL_STORAGE
 private fun hasAudioPermission(context: Context): Boolean = ContextCompat.checkSelfPermission(context, audioPermission()) == PackageManager.PERMISSION_GRANTED
-private fun formatDuration(ms: Long): String { val total = (ms / 1000).toInt(); return "${total / 60}:${(total % 60).toString().padStart(2, '0')}" }
+fun formatDuration(ms: Long): String { val total = (ms / 1000).toInt(); return "${total / 60}:${(total % 60).toString().padStart(2, '0')}" }
