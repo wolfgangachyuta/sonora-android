@@ -230,7 +230,7 @@ private fun HomePage(tracks: List<AudioTrack>, current: AudioTrack?, playing: Bo
             }
         }
         if (recentTracks.isEmpty()) item { EmptyCard("Your listening story starts here.", "Scan the device to discover the music already on it.", "SCAN MUSIC", onScan, ink, panel, muted) }
-        else items(recentTracks, key = { it.id }) { TrackRow(it, current?.id == it.id, onPlay, ink, muted) }
+        else items(recentTracks, key = { it.id }) { TrackRow(it, current?.id == it.id, { onPlay(it) }, ink, muted) }
         if (tracks.isEmpty() && recentTracks.isEmpty()) item { EmptyCard("A library of your own.", "SONORA plays audio stored locally on this device.", "FIND MY MUSIC", onScan, ink, panel, muted) }
         item { Spacer(Modifier.height(8.dp)) }
     }
@@ -279,7 +279,7 @@ private fun LibraryPage(tracks: List<AudioTrack>, loading: Boolean, permission: 
             filtered.isEmpty() -> EmptyCard("Nothing found.", "Try a different search or refresh the library.", "SCAN AGAIN", onScan, ink, panel, muted)
             else -> LazyColumn(contentPadding = PaddingValues(bottom = 14.dp)) { items(filtered, key = { it.id }) { track ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.weight(1f)) { TrackRow(track, current?.id == track.id, onPlay, ink, muted) }
+                    Box(Modifier.weight(1f)) { TrackRow(track, current?.id == track.id, { onPlay(track) }, ink, muted) }
                     IconButton(onClick = { onFavorite(track) }) { Icon(if (track.id.toString() in favorites) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, null, tint = if (track.id.toString() in favorites) Color(0xFFB36D6A) else muted) }
                 }
             } }
