@@ -27,6 +27,21 @@ This roadmap separates shipped foundations from planned work. A milestone is com
 
 ## Phase 3 — Durable library and playback service
 
+**Status: underway — service/session groundwork and persistent favourites committed; controller migration still pending**
+
+- [x] Add Media3 Session dependency
+- [x] Declare media playback service and foreground-service permissions
+- [x] Create MediaSessionService host with ExoPlayer + MediaSession
+- [x] Persist favourite IDs across restarts (SharedPreferences interim storage)
+- [ ] Wire UI to MediaController and migrate active playback to service
+- [ ] Add media notification and lock-screen controls
+- [ ] Handle audio focus, noisy-route events, headset actions, and service lifecycle
+- [ ] Move persistence to Room and create playlists
+- [ ] Persist and restore the queue
+- [ ] Add robust sorting and library refresh
+
+## Phase 4 — Rich music library
+
 - [ ] Introduce Room for favourites, playlists, play history, and preferences
 - [ ] Move playback into MediaSessionService
 - [ ] Add media notification and lock-screen controls
