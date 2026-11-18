@@ -84,7 +84,7 @@ private fun SonoraApp() {
     var hasPermission by remember { mutableStateOf(hasAudioPermission(context)) }
     var favorites by remember { mutableStateOf(preferences.getStringSet("favorite_ids", emptySet())?.toSet() ?: emptySet()) }
     var recentIds by remember { mutableStateOf(preferences.getString("recent_ids", "").orEmpty().split(",").filter { it.isNotBlank() }) }
-    var playCounts by remember { mutableStateOf(preferences.getString("play_counts", "").orEmpty().split(",").filter { it.contains(":") }.associate { it.substringBefore(":") to (it.substringAfter(":").toIntOrNull() ?: 0 }) }
+    var playCounts by remember { mutableStateOf(preferences.getString("play_counts", "").orEmpty().split(",").filter { it.contains(":") }.associate { it.substringBefore(":") to (it.substringAfter(":").toIntOrNull() ?: 0) }) }
     var shuffle by remember { mutableStateOf(false) }
     var repeatMode by remember { mutableStateOf(Player.REPEAT_MODE_OFF) }
     var playlists by remember { mutableStateOf(PlaylistStore(context).load()) }
@@ -303,7 +303,7 @@ private fun SearchPage(tracks: List<AudioTrack>, query: String, onQuery: (String
 }
 
 @Composable
-private fun <T> GroupedPage(title: String, groups: List<Pair<String, List<AudioTrack>>>, subtitle: (Pair<String, List<AudioTrack>>) -> String, onPlay: (Pair<String, List<AudioTrack>>) -> Unit, ink: Color, panel: Color, muted: Color) {
+private fun GroupedPage(title: String, groups: List<Pair<String, List<AudioTrack>>>, subtitle: (Pair<String, List<AudioTrack>>) -> String, onPlay: (Pair<String, List<AudioTrack>>) -> Unit, ink: Color, panel: Color, muted: Color) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item { Column { Text(title, fontSize = 32.sp, fontWeight = FontWeight.Medium, color = ink, letterSpacing = (-1).sp); Text("${groups.size} ${title.uppercase()}", fontSize = 9.sp, color = muted, letterSpacing = 1.4.sp) } }
         if (groups.isEmpty()) item { EmptyCard("Your collection is empty.", "Scan your device to build your collection.", "GO TO LIBRARY", {}, ink, panel, muted) }
