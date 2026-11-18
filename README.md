@@ -26,6 +26,10 @@
 
 The current milestone is not a complete production music player. Favourites reset when the app process is recreated. There is no Room persistence, background playback service, media notification, lock-screen integration, editable queue, real album-art rendering, lyrics, equalizer, or listening-history analytics yet. Artwork in the player is currently a designed placeholder. Playback controls are foreground UI controls.
 
+## Phase 3 progress — background playback foundation
+
+Phase 3 has begun: Media3 Session dependency, manifest service registration, a playback-service skeleton, and persistent favourites are now in the codebase. The service is not fully wired to the UI yet; background playback is **not** claimed complete until controller integration and device tests pass.
+
 ## Technology
 
 | Area | Technology |
