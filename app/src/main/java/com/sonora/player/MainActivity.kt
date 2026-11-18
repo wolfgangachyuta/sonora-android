@@ -340,11 +340,13 @@ private fun PlaylistsPage(
     muted: Color,
     onCreate: (String) -> Unit,
     onDelete: (String) -> Unit,
-    onPopulate: (String) -> Unit,
+    onPopulate: (String, List<String>) -> Unit,
     onPlay: (LocalPlaylist) -> Unit
 ) {
     var showCreate by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
+    var pickerId by remember { mutableStateOf<String?>(null) }
+    var pickedIds by remember { mutableStateOf(setOf<String>()) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -369,7 +371,7 @@ private fun PlaylistsPage(
                     Text(playlist.name, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text("${contained.size} tracks", fontSize = 10.sp, color = muted)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        TextButton(onClick = { onPopulate(playlist.id) }, contentPadding = PaddingValues(0.dp)) { Text("ADD LIBRARY", fontSize = 8.sp) }
+                        TextButton(onClick = { pickedIds = emptySet(); pickerId = playlist.id }, contentPadding = PaddingValues(0.dp)) { Text("ADD LIBRARY", fontSize = 8.sp) }
                         Text("·", color = muted)
                         TextButton(onClick = { onDelete(playlist.id) }, contentPadding = PaddingValues(0.dp)) { Text("DELETE", fontSize = 8.sp) }
                     }
