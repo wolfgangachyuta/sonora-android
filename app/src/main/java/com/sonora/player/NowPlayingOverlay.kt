@@ -158,6 +158,7 @@ private fun VinylRecord(
             .graphicsLayer { rotationZ = rotation }
             .semantics { contentDescription = "Vinyl record. Drag around the record to seek through the track." }
             .pointerInput(duration, revolutionDurationMs) {
+                val radius = size.minDimension / 2f
                 var previousAngle: Float? = null
                 var dragPosition = 0L
                 var isDragging = false
@@ -165,7 +166,7 @@ private fun VinylRecord(
                     onDragStart = { point ->
                         val dx = point.x - size.width / 2f
                         val dy = point.y - size.height / 2f
-                        if (dx * dx + dy * dy <= (size.minDimension / 2f).let { it * it }) {
+                        if (dx * dx + dy * dy <= radius * radius) {
                             isDragging = true
                             previousAngle = atan2(dy, dx)
                             dragPosition = latestPosition.value
@@ -176,7 +177,7 @@ private fun VinylRecord(
                 ) { change, _ ->
                     val dx = change.position.x - size.width / 2f
                     val dy = change.position.y - size.height / 2f
-                    if (isDragging && dx * dx + dy * dy <= (size.minDimension / 2f).let { it * it }) {
+                    if (isDragging && dx * dx + dy * dy <= radius * radius) {
                         val angle = atan2(dy, dx)
                         val old = previousAngle
                         if (old != null) {
