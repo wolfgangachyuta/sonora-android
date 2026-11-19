@@ -25,6 +25,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import kotlin.math.atan2
 import kotlin.math.PI
@@ -143,29 +144,30 @@ private fun VinylRecord(
         animationSpec = tween(durationMillis = 400, easing = LinearEasing),
         label = "vinyl-rotation"
     )
-    var dragging by remember { mutableStateOf(false) }
+    val latestPosition = rememberUpdatedState(position)
     Box(
         Modifier.fillMaxSize(.92f)
             .graphicsLayer { rotationZ = rotation }
-            .pointerInput(duration, position) {
+            .pointerInput(duration) {
                 var previousAngle: Float? = null
-                var dragPosition = position
+                var dragPosition = 0L
+                var isDragging = false
                 detectDragGestures(
                     onDragStart = { point ->
                         val dx = point.x - size.width / 2f
                         val dy = point.y - size.height / 2f
                         if (dx * dx + dy * dy <= (size.minDimension / 2f).let { it * it }) {
-                            dragging = true
+                            isDragging = true
                             previousAngle = atan2(dy, dx)
-                            dragPosition = position
+                            dragPosition = latestPosition.value
                         }
                     },
-                    onDragEnd = { dragging = false; previousAngle = null },
-                    onDragCancel = { dragging = false; previousAngle = null }
+                    onDragEnd = { isDragging = false; previousAngle = null },
+                    onDragCancel = { isDragging = false; previousAngle = null }
                 ) { change, _ ->
                     val dx = change.position.x - size.width / 2f
                     val dy = change.position.y - size.height / 2f
-                    if (dragging && dx * dx + dy * dy <= (size.minDimension / 2f).let { it * it }) {
+                    if (isDragging && dx * dx + dy * dy <= (size.minDimension / 2f).let { it * it }) {
                         val angle = atan2(dy, dx)
                         val old = previousAngle
                         if (old != null) {
