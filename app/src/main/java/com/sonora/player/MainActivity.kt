@@ -197,6 +197,12 @@ private fun SonoraApp() {
                         }, { playlistId, trackId ->
                             playlists = playlists.map { p -> if (p.id == playlistId) p.copy(trackIds = p.trackIds.filterNot { it == trackId }) else p }
                             PlaylistStore(context).save(playlists)
+                        }, { playlistId, newName ->
+                            val clean = newName.trim()
+                            if (clean.isNotEmpty() && playlists.none { it.id != playlistId && it.name.equals(clean, true) }) {
+                                playlists = playlists.map { p -> if (p.id == playlistId) p.copy(name = clean) else p }
+                                PlaylistStore(context).save(playlists)
+                            }
                         }, { playlist ->
                             val songs = playlist.trackIds.mapNotNull { id -> tracks.firstOrNull { it.id.toString() == id } }
                             songs.firstOrNull()?.let { startQueue(songs, it) }
@@ -374,10 +380,12 @@ private fun PlaylistsPage(
     onDelete: (String) -> Unit,
     onPopulate: (String, List<String>) -> Unit,
     onRemoveTrack: (String, String) -> Unit,
+    onRename: (String, String) -> Unit,
     onPlay: (LocalPlaylist) -> Unit
 ) {
     var showCreate by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
+    var renameId by remember { mutableStateOf<String?>(null) }
     var pickerId by remember { mutableStateOf<String?>(null) }
     var pickedIds by remember { mutableStateOf(setOf<String>()) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -406,6 +414,7 @@ private fun PlaylistsPage(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         TextButton(onClick = { pickedIds = emptySet(); pickerId = playlist.id }, contentPadding = PaddingValues(0.dp)) { Text("ADD LIBRARY", fontSize = 8.sp) }
                         Text("·", color = muted)
+                        TextButton(onClick = { name = playlist.name; renameId = playlist.id }, contentPadding = PaddingValues(0.dp)) { Text("RENAME", fontSize = 8.sp) }
                         TextButton(onClick = { onDelete(playlist.id) }, contentPadding = PaddingValues(0.dp)) { Text("DELETE", fontSize = 8.sp) }
                     }
                 }
@@ -427,6 +436,12 @@ private fun PlaylistsPage(
             confirmButton = { TextButton(onClick = { onCreate(name); showCreate = false }) { Text("Create") } },
             dismissButton = { TextButton(onClick = { showCreate = false }) { Text("Cancel") } }
         )
+    }
+    if (renameId != null) {
+        AlertDialog(onDismissRequest = { renameId = null }, title = { Text("Rename playlist") },
+            text = { OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Playlist name") }, singleLine = true) },
+            confirmButton = { TextButton(onClick = { onRename(renameId!!, name); renameId = null }) { Text("Save") } },
+            dismissButton = { TextButton(onClick = { renameId = null }) { Text("Cancel") } })
     }
     if (pickerId != null) {
         AlertDialog(onDismissRequest = { pickerId = null }, title = { Text("Add tracks") },
