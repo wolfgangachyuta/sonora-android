@@ -2,6 +2,7 @@ package com.sonora.player
 
 import android.content.Context
 import android.media.MediaScannerConnection
+import android.net.Uri
 import android.os.Environment
 import com.yausername.ffmpeg.FFmpeg
 import com.yausername.youtubedl_android.YoutubeDL
@@ -47,8 +48,27 @@ object SonoraFetch {
         FFmpeg.getInstance().init(appContext)
     }
 
+    private fun normalizeSourceUrl(url: String): String {
+        val uri = runCatching { Uri.parse(url.trim()) }.getOrNull() ?: return url
+        val host = uri.host?.lowercase().orEmpty()
+        val isYouTube = host == "youtu.be" || host == "youtube.com" || host.endsWith(".youtube.com") || host == "youtube-nocookie.com" || host.endsWith(".youtube-nocookie.com")
+        if (!isYouTube) return url
+
+        val videoId = when {
+            host == "youtu.be" -> uri.lastPathSegment
+            uri.getQueryParameter("v").isNullOrBlank().not() -> uri.getQueryParameter("v")
+            else -> uri.pathSegments.let { segments ->
+                val marker = segments.indexOfFirst { it == "shorts" || it == "embed" || it == "live" }
+                if (marker >= 0) segments.getOrNull(marker + 1) else null
+            }
+        }?.takeIf { it.matches(Regex("[A-Za-z0-9_-]{11}")) }
+
+        // Strip playlist/radio context: Fetch always downloads one explicitly selected video.
+        return if (videoId != null) "https://www.youtube.com/watch?v=$videoId" else url
+    }
+
     suspend fun inspect(url: String): FetchTrackInfo = withContext(Dispatchers.IO) {
-        val info = YoutubeDL.getInstance().getInfo(url)
+        val info = YoutubeDL.getInstance().getInfo(normalizeSourceUrl(url))
         FetchTrackInfo(info.title.orEmpty().ifBlank { "Untitled audio" }, info.duration.toLong())
     }
 
@@ -62,11 +82,12 @@ object SonoraFetch {
             "SONORA"
         )
         if (!folder.exists() && !folder.mkdirs()) error("Could not create Downloads/SONORA")
+        val sourceUrl = normalizeSourceUrl(url)
         val startedAt = System.currentTimeMillis()
         val processId = "sonora-fetch-" + UUID.randomUUID().toString()
         activeProcessId = processId
         try {
-            val request = YoutubeDLRequest(url).apply {
+            val request = YoutubeDLRequest(sourceUrl).apply {
                 addOption("-x")
                 addOption("--audio-format", "mp3")
                 addOption("--audio-quality", "0")
