@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.net.Uri
 import android.content.ContentUris
 import android.content.Context
+import android.content.ComponentName
 import android.graphics.BitmapFactory
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -42,6 +43,8 @@ import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -71,8 +74,25 @@ private fun SonoraApp() {
     val paper = if (darkMode) Night else Cream
     val panel = if (darkMode) PanelDark else PanelLight
     val muted = if (darkMode) MutedDark else MutedLight
-    val player = remember { ExoPlayer.Builder(context).build().apply { repeatMode = Player.REPEAT_MODE_OFF } }
-    DisposableEffect(player) { onDispose { player.release() } }
+    val fallbackPlayer = remember { ExoPlayer.Builder(context).build().apply { repeatMode = Player.REPEAT_MODE_OFF } }
+    var player by remember { mutableStateOf<Player>(fallbackPlayer) }
+    DisposableEffect(context, fallbackPlayer) {
+        val token = SessionToken(context, ComponentName(context, SonoraPlaybackService::class.java))
+        val future = MediaController.Builder(context, token).buildAsync()
+        future.addListener({
+            runCatching {
+                val controller = future.get()
+                if (player === fallbackPlayer) {
+                    fallbackPlayer.release()
+                    player = controller
+                }
+            }
+        }, ContextCompat.getMainExecutor(context))
+        onDispose {
+            MediaController.releaseFuture(future)
+            if (player === fallbackPlayer) fallbackPlayer.release()
+        }
+    }
 
     var tracks by remember { mutableStateOf(emptyList<AudioTrack>()) }
     var currentTrack by remember { mutableStateOf<AudioTrack?>(null) }
@@ -182,7 +202,7 @@ private fun SonoraApp() {
                             songs.firstOrNull()?.let { startQueue(songs, it) }
                         })
                         "Lyrics" -> LyricsPage(lyricLines, positionMs, ink, panel, muted, { lyricLauncher.launch(arrayOf("text/*", "application/octet-stream")) }, { tab = "Now Playing" })
-                        "Equalizer" -> EqualizerPage(player.audioSessionId, ink, panel, muted, { tab = "Settings" })
+                        "Equalizer" -> EqualizerPage(SonoraPlaybackService.audioSessionId, ink, panel, muted, { tab = "Settings" })
                         "Settings" -> SettingsPage(darkMode, { darkMode = it; preferences.edit().putBoolean("dark_mode", it).apply() }, shuffle, { shuffle = it; player.shuffleModeEnabled = it }, repeatMode, { repeatMode = it; player.repeatMode = it }, tracks.size, ink, panel, muted, { tab = "Equalizer" })
                         else -> HomePage(tracks, currentTrack, isPlaying, recentIds, ::play, ::requestScan, { tab = "Library" }, ink, panel, muted, darkMode)
                     }
