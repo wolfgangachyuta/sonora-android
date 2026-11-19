@@ -336,34 +336,51 @@ private fun FetchPage(ink: Color, panel: Color, muted: Color) {
     val scope = rememberCoroutineScope()
     var url by remember { mutableStateOf("") }
     var details by remember { mutableStateOf<FetchTrackInfo?>(null) }
-    var busy by remember { mutableStateOf(false) }
-    var progress by remember { mutableIntStateOf(0) }
-    var eta by remember { mutableIntStateOf(0) }
-    var message by remember { mutableStateOf("Paste a link to audio you own or are authorised to download.") }
+    var analysing by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    var savedFile by remember { mutableStateOf<String?>(null) }
     var engineReady by remember { mutableStateOf(false) }
     var engineError by remember { mutableStateOf<String?>(null) }
+    val fetchStatus by SonoraFetch.status.collectAsState()
     LaunchedEffect(context) {
-        runCatching { SonoraFetch.initialize(context) }
-            .onSuccess { engineReady = true }
-            .onFailure { engineError = it.message ?: "The download engine could not initialise." }
+        runCatching { SonoraFetch.initialize(context) }.onSuccess { engineReady = true }.onFailure { engineError = it.message ?: "The download engine could not initialise." }
     }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(15.dp)) {
-        item { Text("OFFLINE MUSIC", fontSize = 9.sp, color = muted, letterSpacing = 1.8.sp); Text("SONORA Fetch", fontSize = 36.sp, fontWeight = FontWeight.Medium, letterSpacing = (-1.8).sp, color = ink); Text("Bring authorised audio into your local library.", fontSize = 11.sp, color = muted) }
+        item {
+            Text("OFFLINE MUSIC", fontSize = 9.sp, color = muted, letterSpacing = 1.8.sp)
+            Text("SONORA Fetch", fontSize = 36.sp, fontWeight = FontWeight.Medium, letterSpacing = (-1.8).sp, color = ink)
+            Text("Bring authorised audio into your local library.", fontSize = 11.sp, color = muted)
+        }
         item { Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(panel).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("SOURCE LINK", fontSize = 9.sp, letterSpacing = 1.5.sp, color = muted)
-            OutlinedTextField(value = url, onValueChange = { url = it; details = null; error = null; savedFile = null }, modifier = Modifier.fillMaxWidth(), placeholder = { Text("https://…") }, singleLine = true, shape = RoundedCornerShape(15.dp), enabled = !busy)
+            OutlinedTextField(value = url, onValueChange = { url = it; details = null; error = null }, modifier = Modifier.fillMaxWidth(), placeholder = { Text("https://…") }, singleLine = true, shape = RoundedCornerShape(15.dp), enabled = !fetchStatus.active && !analysing)
             Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                OutlinedButton(onClick = { error = null; details = null; if (!url.trim().startsWith("https://") && !url.trim().startsWith("http://")) error = "Enter a valid HTTPS or HTTP link." else scope.launch { busy = true; message = "Reading source information…"; runCatching { SonoraFetch.inspect(url.trim()) }.onSuccess { details = it; message = "Ready to extract audio." }.onFailure { error = it.message ?: "Could not read this source." }; busy = false } }, enabled = engineReady && !busy && url.isNotBlank(), modifier = Modifier.weight(1f)) { Text("ANALYSE", fontSize = 10.sp) }
-                Button(onClick = { error = null; savedFile = null; progress = 0; scope.launch { busy = true; message = "Preparing audio extraction…"; runCatching { SonoraFetch.downloadAudio(context, url.trim()) { p, remaining -> progress = p; eta = remaining } }.onSuccess { savedFile = it.absolutePath; message = "Saved to Downloads/SONORA and added to the media index." }.onFailure { error = it.message ?: "Download failed." }; busy = false } }, enabled = engineReady && !busy && details != null, modifier = Modifier.weight(1f)) { Text("DOWNLOAD MP3", fontSize = 10.sp) }
+                OutlinedButton(onClick = {
+                    error = null; details = null
+                    if (!url.trim().startsWith("https://") && !url.trim().startsWith("http://")) error = "Enter a valid HTTPS or HTTP link."
+                    else scope.launch { analysing = true; runCatching { SonoraFetch.inspect(url.trim()) }.onSuccess { details = it }.onFailure { error = it.message ?: "Could not read this source." }; analysing = false }
+                }, enabled = engineReady && !fetchStatus.active && !analysing && url.isNotBlank(), modifier = Modifier.weight(1f)) { Text(if (analysing) "ANALYSING…" else "ANALYSE", fontSize = 10.sp) }
+                Button(onClick = { error = null; SonoraFetch.updateStatus(FetchStatus(active = true, message = "Starting download…")); SonoraFetchService.start(context, url.trim()) }, enabled = engineReady && !fetchStatus.active && !analysing && details != null, modifier = Modifier.weight(1f)) { Text("DOWNLOAD MP3", fontSize = 10.sp) }
             }
         } }
-        if (details != null) item { Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(panel).padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { Text("READY TO DOWNLOAD", fontSize = 9.sp, color = muted, letterSpacing = 1.4.sp); Text(details!!.title, fontSize = 17.sp, color = ink, fontWeight = FontWeight.SemiBold); Text(if (details!!.durationSeconds > 0) formatDuration(details!!.durationSeconds * 1000L) else "Duration unavailable", fontSize = 10.sp, color = muted); Text("Audio · MP3 · best available quality", fontSize = 10.sp, color = muted) } }
-        if (busy) item { Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(panel).padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.size(19.dp), strokeWidth = 2.dp, color = AccentDeep); Spacer(Modifier.width(10.dp)); Text(message, fontSize = 11.sp, color = ink, modifier = Modifier.weight(1f)); TextButton(onClick = { SonoraFetch.cancel(); message = "Stopping download…" }) { Text("CANCEL", fontSize = 9.sp) } }; LinearProgressIndicator(progress = { progress / 100f }, modifier = Modifier.fillMaxWidth(), color = AccentDeep); Text("$progress% · ${if (eta > 0) "ETA ${eta}s" else "Estimating time"}", fontSize = 9.sp, color = muted) } }
-        if (engineError != null) item { Text(engineError!!, color = Color(0xFFB3261E), fontSize = 11.sp) }
+        if (details != null) item { Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(panel).padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("READY TO DOWNLOAD", fontSize = 9.sp, color = muted, letterSpacing = 1.4.sp)
+            Text(details!!.title, fontSize = 17.sp, color = ink, fontWeight = FontWeight.SemiBold)
+            Text(if (details!!.durationSeconds > 0) formatDuration(details!!.durationSeconds * 1000L) else "Duration unavailable", fontSize = 10.sp, color = muted)
+            Text("Audio · MP3 · best available quality", fontSize = 10.sp, color = muted)
+        } }
+        if (fetchStatus.active) item { Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(panel).padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.size(19.dp), strokeWidth = 2.dp, color = AccentDeep); Spacer(Modifier.width(10.dp)); Text(fetchStatus.message, fontSize = 11.sp, color = ink, modifier = Modifier.weight(1f)); TextButton(onClick = { SonoraFetchService.cancel(context) }) { Text("CANCEL", fontSize = 9.sp) } }
+            LinearProgressIndicator(progress = { fetchStatus.progress / 100f }, modifier = Modifier.fillMaxWidth(), color = AccentDeep)
+            Text("${fetchStatus.progress}% · ${if (fetchStatus.etaSeconds > 0) "ETA ${fetchStatus.etaSeconds}s" else "Estimating time"}", fontSize = 9.sp, color = muted)
+        } }
+        if (fetchStatus.error != null) item { Text(fetchStatus.error!!, color = Color(0xFFB3261E), fontSize = 11.sp) }
         if (error != null) item { Text(error!!, color = Color(0xFFB3261E), fontSize = 11.sp) }
-        if (savedFile != null) item { Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(panel).padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) { Text("DOWNLOAD COMPLETE", fontSize = 9.sp, color = AccentDeep, letterSpacing = 1.4.sp); Text(savedFile!!.substringAfterLast('/'), fontSize = 13.sp, color = ink, fontWeight = FontWeight.SemiBold); Text("Saved in Downloads/SONORA. Refresh your library to see it.", fontSize = 10.sp, color = muted) } }
+        if (fetchStatus.savedPath != null) item { Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(panel).padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text("DOWNLOAD COMPLETE", fontSize = 9.sp, color = AccentDeep, letterSpacing = 1.4.sp)
+            Text(fetchStatus.savedPath!!.substringAfterLast('/'), fontSize = 13.sp, color = ink, fontWeight = FontWeight.SemiBold)
+            Text("Saved in Downloads/SONORA. Refresh your library to see it.", fontSize = 10.sp, color = muted)
+        } }
+        if (engineError != null) item { Text(engineError!!, color = Color(0xFFB3261E), fontSize = 11.sp) }
         item { Text("SONORA Fetch uses yt-dlp and FFmpeg. Download only material you own or have permission to save, and respect the source platform’s terms.", fontSize = 10.sp, color = muted, lineHeight = 15.sp) }
     }
 }
