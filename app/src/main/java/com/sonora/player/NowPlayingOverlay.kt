@@ -1,6 +1,10 @@
 package com.sonora.player
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,6 +15,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlin.math.atan2
+import kotlin.math.PI
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -33,13 +50,14 @@ fun NowPlayingOverlay(
     val foreground = if (dark) Color(0xFFF4F1E9) else Color(0xFF171817)
     val secondary = if (dark) Color(0xFFAAA99F) else Color(0xFF77796F)
     val accent = Color(0xFFB3261E)
+    var vinylMode by remember { mutableStateOf(true) }
 
     Surface(Modifier.fillMaxSize(), color = backdrop, contentColor = foreground) {
         Box(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxWidth().height(360.dp).background(Brush.verticalGradient(
                 listOf(if (dark) Color(0xFF5B2928).copy(.30f) else Color(0xFFE7C9C4).copy(.58f), backdrop)
             )))
-            Column(Modifier.fillMaxSize().padding(horizontal = 22.dp)) {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp)) {
                 Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onClose) {
                         Icon(Icons.Rounded.KeyboardArrowDown, "Close player", tint = foreground, modifier = Modifier.size(29.dp))
@@ -53,13 +71,20 @@ fun NowPlayingOverlay(
                     }
                 }
 
-                Spacer(Modifier.weight(.45f))
-                Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(28.dp))
-                    .background(Brush.linearGradient(listOf(Color(0xFF342B2B), Color(0xFF9A6960), Color(0xFFD7BCA0)))),
-                    contentAlignment = Alignment.Center) {
-                    AlbumArtwork(track.albumId, Modifier.fillMaxSize().clip(RoundedCornerShape(28.dp)))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                    SingleChoiceSegmentedButtonRow {
+                        SegmentedButton(selected = vinylMode, onClick = { vinylMode = true }, shape = SegmentedButtonDefaults.itemShape(0, 2)) { Text("VINYL", fontSize = 9.sp, letterSpacing = 1.sp) }
+                        SegmentedButton(selected = !vinylMode, onClick = { vinylMode = false }, shape = SegmentedButtonDefaults.itemShape(1, 2)) { Text("ARTWORK", fontSize = 9.sp, letterSpacing = 1.sp) }
+                    }
                 }
-                Spacer(Modifier.weight(.45f))
+                Spacer(Modifier.height(12.dp))
+                Box(Modifier.fillMaxWidth().aspectRatio(1f), contentAlignment = Alignment.Center) {
+                    if (vinylMode) VinylRecord(track.albumId, position, safeDuration, playing, backdrop, onSeek)
+                    else Box(Modifier.fillMaxSize(.88f).clip(RoundedCornerShape(28.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF342B2B), Color(0xFF9A6960), Color(0xFFD7BCA0))))) {
+                        AlbumArtwork(track.albumId, Modifier.fillMaxSize().clip(RoundedCornerShape(28.dp)))
+                    }
+                }
 
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
@@ -104,5 +129,75 @@ fun NowPlayingOverlay(
                 Spacer(Modifier.height(18.dp))
             }
         }
+    }
+}
+
+
+@Composable
+private fun VinylRecord(
+    albumId: Long?, position: Long, duration: Long, playing: Boolean,
+    backdrop: Color, onSeek: (Long) -> Unit
+) {
+    val rotation by animateFloatAsState(
+        targetValue = if (playing) ((position % 24_000L).toFloat() / 24_000f) * 360f else 0f,
+        animationSpec = tween(durationMillis = 400, easing = LinearEasing),
+        label = "vinyl-rotation"
+    )
+    var dragging by remember { mutableStateOf(false) }
+    Box(
+        Modifier.fillMaxSize(.92f)
+            .graphicsLayer { rotationZ = rotation }
+            .pointerInput(duration, position) {
+                var previousAngle: Float? = null
+                var dragPosition = position
+                detectDragGestures(
+                    onDragStart = { point ->
+                        val dx = point.x - size.width / 2f
+                        val dy = point.y - size.height / 2f
+                        if (dx * dx + dy * dy <= (size.minDimension / 2f).let { it * it }) {
+                            dragging = true
+                            previousAngle = atan2(dy, dx)
+                            dragPosition = position
+                        }
+                    },
+                    onDragEnd = { dragging = false; previousAngle = null },
+                    onDragCancel = { dragging = false; previousAngle = null }
+                ) { change, _ ->
+                    val dx = change.position.x - size.width / 2f
+                    val dy = change.position.y - size.height / 2f
+                    if (dragging && dx * dx + dy * dy <= (size.minDimension / 2f).let { it * it }) {
+                        val angle = atan2(dy, dx)
+                        val old = previousAngle
+                        if (old != null) {
+                            var delta = angle - old
+                            if (delta > PI) delta -= (2.0 * PI).toFloat()
+                            if (delta < -PI) delta += (2.0 * PI).toFloat()
+                            dragPosition = (dragPosition + (delta / (2.0 * PI) * 24_000.0).toLong())
+                                .coerceIn(0L, duration.coerceAtLeast(1L))
+                            onSeek(dragPosition)
+                        }
+                        previousAngle = angle
+                    }
+                    change.consume()
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            val radius = size.minDimension / 2f
+            drawCircle(Color(0xFF171719), radius = radius)
+            drawCircle(Color(0xFF252528), radius = radius * .96f)
+            listOf(.69f, .77f, .84f, .91f).forEachIndexed { index, ratio ->
+                drawCircle(
+                    color = Color.White.copy(alpha = if (index % 2 == 0) .11f else .055f),
+                    radius = radius * ratio,
+                    style = Stroke(width = (1.2f + index * .25f).dp.toPx())
+                )
+            }
+            drawCircle(Color(0xFF101012), radius = radius * .505f)
+            drawCircle(Color.White.copy(alpha = .12f), radius = radius * .505f, style = Stroke(1.dp.toPx()))
+        }
+        AlbumArtwork(albumId, Modifier.fillMaxSize(.49f).clip(CircleShape))
+        Box(Modifier.fillMaxSize(.045f).clip(CircleShape).background(backdrop).padding(2.dp).clip(CircleShape).background(Color(0xFF777777)))
     }
 }
