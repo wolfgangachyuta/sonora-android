@@ -180,12 +180,12 @@ private fun SonoraApp() {
     MaterialTheme(colorScheme = if (darkMode) darkColorScheme(primary = Accent, background = Night, surface = PanelDark, onSurface = Cream, onPrimary = Night) else lightColorScheme(primary = Night, background = Cream, surface = Cream, onSurface = Night, secondary = Accent)) {
         Surface(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing), color = paper, contentColor = ink) {
             Column(Modifier.fillMaxSize()) {
-                TopBrand(ink, muted, onSettings = { tab = "Settings" })
+                TopBrand(ink, muted, onSearch = { tab = "Search" }, onSettings = { tab = "Settings" })
                 AnimatedContent(tab, label = "main-content", modifier = Modifier.weight(1f)) { destination ->
                     when (destination) {
                         "Library" -> LibraryPage(tracks, loading, hasPermission, query, { query = it }, { libraryFilter = it }, libraryFilter, ::requestScan, ::play, currentTrack, favorites, ::toggleFavorite, ink, paper, panel, muted)
-                        "Albums" -> GroupedPage("Albums", tracks.groupBy { it.album }.toList().sortedBy { it.first.lowercase() }, { it.second.firstOrNull()?.artist ?: "Unknown artist" }, { group -> group.second.firstOrNull()?.let { startQueue(group.second, it) } }, ink, panel, muted)
-                        "Artists" -> GroupedPage("Artists", tracks.groupBy { it.artist }.toList().sortedBy { it.first.lowercase() }, { "${it.second.size} tracks" }, { group -> group.second.firstOrNull()?.let { startQueue(group.second, it) } }, ink, panel, muted)
+                        "Albums" -> GroupedPage("Albums", tracks.groupBy { it.album }.toList().sortedBy { it.first.lowercase() }, { it.second.firstOrNull()?.artist ?: "Unknown artist" }, { group -> group.second.firstOrNull()?.let { startQueue(group.second, it) } }, { tab = "Artists" }, ink, panel, muted)
+                        "Artists" -> GroupedPage("Artists", tracks.groupBy { it.artist }.toList().sortedBy { it.first.lowercase() }, { "${it.second.size} tracks" }, { group -> group.second.firstOrNull()?.let { startQueue(group.second, it) } }, { tab = "Albums" }, ink, panel, muted)
                         "Search" -> SearchPage(tracks, query, { query = it }, ::play, currentTrack, ink, panel, muted)
                         "Fetch" -> FetchPage(ink, panel, muted)
                         "Favourites" -> TrackCollectionPage("Favourites", tracks.filter { it.id.toString() in favorites }, ::play, currentTrack, favorites, ::toggleFavorite, ink, panel, muted)
@@ -235,12 +235,13 @@ private fun SonoraApp() {
 }
 
 @Composable
-private fun TopBrand(ink: Color, muted: Color, onSettings: () -> Unit) {
+private fun TopBrand(ink: Color, muted: Color, onSearch: () -> Unit, onSettings: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text("SONORA", fontSize = 19.sp, fontWeight = FontWeight.Black, letterSpacing = 4.sp, color = ink)
             Text("THE ART OF LISTENING", fontSize = 8.sp, letterSpacing = 1.6.sp, color = muted)
         }
+        IconButton(onClick = onSearch) { Icon(Icons.Rounded.Search, "Search your library", tint = ink) }
         IconButton(onClick = onSettings) { Icon(Icons.Rounded.Tune, "Settings", tint = ink) }
     }
 }
@@ -404,9 +405,9 @@ private fun SearchPage(tracks: List<AudioTrack>, query: String, onQuery: (String
 }
 
 @Composable
-private fun GroupedPage(title: String, groups: List<Pair<String, List<AudioTrack>>>, subtitle: (Pair<String, List<AudioTrack>>) -> String, onPlay: (Pair<String, List<AudioTrack>>) -> Unit, ink: Color, panel: Color, muted: Color) {
+private fun GroupedPage(title: String, groups: List<Pair<String, List<AudioTrack>>>, subtitle: (Pair<String, List<AudioTrack>>) -> String, onPlay: (Pair<String, List<AudioTrack>>) -> Unit, onSwitch: () -> Unit, ink: Color, panel: Color, muted: Color) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        item { Column { Text(title, fontSize = 37.sp, fontWeight = FontWeight.Medium, color = ink, letterSpacing = (-1.8).sp); Text("${groups.size} ${title.uppercase()}", fontSize = 9.sp, color = muted, letterSpacing = 1.4.sp) } }
+        item { Column(verticalArrangement = Arrangement.spacedBy(7.dp)) { Text("BROWSE YOUR MUSIC", fontSize = 9.sp, color = muted, letterSpacing = 1.8.sp); Text(title, fontSize = 37.sp, fontWeight = FontWeight.Medium, color = ink, letterSpacing = (-1.8).sp); Text("${groups.size} ${title.lowercase()} in your collection", fontSize = 11.sp, color = muted); FilterPill(if (title == "Albums") "VIEW ARTISTS →" else "VIEW ALBUMS →", false, ink, panel, onSwitch) } }
         if (groups.isEmpty()) item { EmptyCard("Your collection is empty.", "Scan your device to build your collection.", "GO TO LIBRARY", {}, ink, panel, muted) }
         items(groups, key = { it.first }) { group ->
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(panel).clickable { onPlay(group) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
