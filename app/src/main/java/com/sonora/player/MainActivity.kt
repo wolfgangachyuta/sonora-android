@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -172,7 +174,7 @@ private fun SonoraApp() {
     fun requestScan() { if (hasPermission) loading = true else permissionLauncher.launch(audioPermission()) }
 
     MaterialTheme(colorScheme = if (darkMode) darkColorScheme(primary = Accent, background = Night, surface = PanelDark, onSurface = Cream, onPrimary = Night) else lightColorScheme(primary = Night, background = Cream, surface = Cream, onSurface = Night, secondary = Accent)) {
-        Surface(Modifier.fillMaxSize(), color = paper, contentColor = ink) {
+        Surface(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing), color = paper, contentColor = ink) {
             Column(Modifier.fillMaxSize()) {
                 TopBrand(ink, muted, onSettings = { tab = "Settings" })
                 AnimatedContent(tab, label = "main-content", modifier = Modifier.weight(1f)) { destination ->
@@ -181,6 +183,7 @@ private fun SonoraApp() {
                         "Albums" -> GroupedPage("Albums", tracks.groupBy { it.album }.toList().sortedBy { it.first.lowercase() }, { it.second.firstOrNull()?.artist ?: "Unknown artist" }, { group -> group.second.firstOrNull()?.let { startQueue(group.second, it) } }, ink, panel, muted)
                         "Artists" -> GroupedPage("Artists", tracks.groupBy { it.artist }.toList().sortedBy { it.first.lowercase() }, { "${it.second.size} tracks" }, { group -> group.second.firstOrNull()?.let { startQueue(group.second, it) } }, ink, panel, muted)
                         "Search" -> SearchPage(tracks, query, { query = it }, ::play, currentTrack, ink, panel, muted)
+                        "Fetch" -> FetchPage(ink, panel, muted)
                         "Favourites" -> TrackCollectionPage("Favourites", tracks.filter { it.id.toString() in favorites }, ::play, currentTrack, favorites, ::toggleFavorite, ink, panel, muted)
                         "Statistics" -> StatsPage(tracks, playCounts, recentIds, ink, panel, muted)
                         "Playlists" -> PlaylistsPage(playlists, tracks, ink, panel, muted, { name ->
@@ -327,6 +330,35 @@ private fun LibraryPage(tracks: List<AudioTrack>, loading: Boolean, permission: 
     }
 }
 
+@Composable
+private fun FetchPage(ink: Color, panel: Color, muted: Color) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var url by remember { mutableStateOf("") }
+    var details by remember { mutableStateOf<FetchTrackInfo?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    var progress by remember { mutableIntStateOf(0) }
+    var eta by remember { mutableIntStateOf(0) }
+    var message by remember { mutableStateOf("Paste a link to audio you own or are authorised to download.") }
+    var error by remember { mutableStateOf<String?>(null) }
+    var savedFile by remember { mutableStateOf<String?>(null) }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(15.dp)) {
+        item { Text("OFFLINE MUSIC", fontSize = 9.sp, color = muted, letterSpacing = 1.8.sp); Text("SONORA Fetch", fontSize = 36.sp, fontWeight = FontWeight.Medium, letterSpacing = (-1.8).sp, color = ink); Text("Bring authorised audio into your local library.", fontSize = 11.sp, color = muted) }
+        item { Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(panel).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("SOURCE LINK", fontSize = 9.sp, letterSpacing = 1.5.sp, color = muted)
+            OutlinedTextField(value = url, onValueChange = { url = it; details = null; error = null; savedFile = null }, modifier = Modifier.fillMaxWidth(), placeholder = { Text("https://…") }, singleLine = true, shape = RoundedCornerShape(15.dp), enabled = !busy)
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                OutlinedButton(onClick = { error = null; details = null; if (!url.trim().startsWith("https://") && !url.trim().startsWith("http://")) error = "Enter a valid HTTPS or HTTP link." else scope.launch { busy = true; message = "Reading source information…"; runCatching { SonoraFetch.inspect(url.trim()) }.onSuccess { details = it; message = "Ready to extract audio." }.onFailure { error = it.message ?: "Could not read this source." }; busy = false } }, enabled = !busy && url.isNotBlank(), modifier = Modifier.weight(1f)) { Text("ANALYSE", fontSize = 10.sp) }
+                Button(onClick = { error = null; savedFile = null; progress = 0; scope.launch { busy = true; message = "Preparing audio extraction…"; runCatching { SonoraFetch.downloadAudio(context, url.trim()) { p, remaining -> progress = p; eta = remaining } }.onSuccess { savedFile = it.absolutePath; message = "Saved to Downloads/SONORA and added to the media index." }.onFailure { error = it.message ?: "Download failed." }; busy = false } }, enabled = !busy && details != null, modifier = Modifier.weight(1f)) { Text("DOWNLOAD MP3", fontSize = 10.sp) }
+            }
+        } }
+        if (details != null) item { Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(panel).padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { Text("READY TO DOWNLOAD", fontSize = 9.sp, color = muted, letterSpacing = 1.4.sp); Text(details!!.title, fontSize = 17.sp, color = ink, fontWeight = FontWeight.SemiBold); Text(if (details!!.durationSeconds > 0) formatDuration(details!!.durationSeconds * 1000L) else "Duration unavailable", fontSize = 10.sp, color = muted); Text("Audio · MP3 · best available quality", fontSize = 10.sp, color = muted) } }
+        if (busy) item { Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(panel).padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { CircularProgressIndicator(Modifier.size(19.dp), strokeWidth = 2.dp, color = AccentDeep); Spacer(Modifier.width(10.dp)); Text(message, fontSize = 11.sp, color = ink, modifier = Modifier.weight(1f)); TextButton(onClick = { SonoraFetch.cancel(); message = "Stopping download…" }) { Text("CANCEL", fontSize = 9.sp) } }; LinearProgressIndicator(progress = { progress / 100f }, modifier = Modifier.fillMaxWidth(), color = AccentDeep); Text("$progress% · ${if (eta > 0) "ETA ${eta}s" else "Estimating time"}", fontSize = 9.sp, color = muted) } }
+        if (error != null) item { Text(error!!, color = Color(0xFFB3261E), fontSize = 11.sp) }
+        if (savedFile != null) item { Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(panel).padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) { Text("DOWNLOAD COMPLETE", fontSize = 9.sp, color = AccentDeep, letterSpacing = 1.4.sp); Text(savedFile!!.substringAfterLast('/'), fontSize = 13.sp, color = ink, fontWeight = FontWeight.SemiBold); Text("Saved in Downloads/SONORA. Refresh your library to see it.", fontSize = 10.sp, color = muted) } }
+        item { Text("SONORA Fetch uses yt-dlp and FFmpeg. Download only material you own or have permission to save, and respect the source platform’s terms.", fontSize = 10.sp, color = muted, lineHeight = 15.sp) }
+    }
+}
 @Composable
 private fun SearchPage(tracks: List<AudioTrack>, query: String, onQuery: (String) -> Unit, onPlay: (AudioTrack) -> Unit, current: AudioTrack?, ink: Color, panel: Color, muted: Color) {
     val results = if (query.isBlank()) emptyList() else tracks.filter { it.title.contains(query, true) || it.artist.contains(query, true) || it.album.contains(query, true) }
@@ -562,13 +594,16 @@ private fun MiniPlayer(track: AudioTrack, playing: Boolean, position: Long, dura
 
 @Composable
 private fun BottomNav(selected: String, ink: Color, muted: Color, onSelect: (String) -> Unit) {
-    val destinations = listOf(Triple("Listen", Icons.Rounded.Home, "Listen"), Triple("Library", Icons.Rounded.LibraryMusic, "Library"), Triple("Albums", Icons.Rounded.Album, "Albums"), Triple("Playlists", Icons.Rounded.QueueMusic, "Playlists"), Triple("You", Icons.Rounded.Person, "Statistics"))
-    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp).clip(RoundedCornerShape(30.dp)).background(if (ink == Night) PanelDark else PanelLight).padding(horizontal = 5.dp, vertical = 7.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+    val destinations = listOf(Triple("Listen", Icons.Rounded.Home, "Listen"), Triple("Library", Icons.Rounded.LibraryMusic, "Library"), Triple("Albums", Icons.Rounded.Album, "Albums"), Triple("Fetch", Icons.Rounded.DownloadForOffline, "Fetch"), Triple("Playlists", Icons.Rounded.QueueMusic, "Playlists"), Triple("You", Icons.Rounded.Person, "Statistics"))
+    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 5.dp).clip(RoundedCornerShape(26.dp)).background(if (ink == Night) PanelDark else PanelLight).padding(horizontal = 3.dp, vertical = 4.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
         destinations.forEach { (label, icon, destination) ->
             val active = selected == destination
-            Column(Modifier.weight(1f).clip(RoundedCornerShape(24.dp)).background(if (active) Accent.copy(alpha = .32f) else Color.Transparent).clickable { onSelect(destination) }.padding(vertical = 5.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(icon, contentDescription = label, tint = if (active) ink else muted, modifier = Modifier.size(20.dp))
-                Text(label, fontSize = 9.sp, fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal, color = if (active) ink else muted)
+            Column(Modifier.weight(1f).heightIn(min = 48.dp).clip(RoundedCornerShape(24.dp))
+                .background(if (active) Accent.copy(alpha = .32f) else Color.Transparent)
+                .selectable(selected = active, role = Role.Tab, onClick = { onSelect(destination) })
+                .padding(vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Icon(icon, contentDescription = null, tint = if (active) ink else muted, modifier = Modifier.size(20.dp))
+                Text(label, fontSize = 8.sp, fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal, color = if (active) ink else muted, maxLines = 1)
             }
         }
     }
