@@ -82,7 +82,7 @@ fun NowPlayingOverlay(
                             SegmentedButton(selected = !vinylMode, onClick = { vinylMode = false }, shape = SegmentedButtonDefaults.itemShape(1, 2)) { Text("ARTWORK", fontSize = 9.sp, letterSpacing = 1.sp) }
                         }
                         if (vinylMode) TextButton(onClick = { standardVinylSpeed = !standardVinylSpeed }, contentPadding = PaddingValues(horizontal = 7.dp, vertical = 4.dp)) {
-                            Text(if (standardVinylSpeed) "33 RPM" else "SLOW", fontSize = 8.sp, letterSpacing = .6.sp)
+                            Text(if (standardVinylSpeed) "33 RPM" else "24s", fontSize = 8.sp, letterSpacing = .6.sp)
                         }
                     }
                 }
