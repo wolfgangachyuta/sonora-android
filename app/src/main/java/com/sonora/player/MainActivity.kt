@@ -394,8 +394,9 @@ private fun PlaylistsPage(
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Playlists", fontSize = 32.sp, fontWeight = FontWeight.Medium, color = ink, letterSpacing = (-1).sp)
-                    Text("CURATE YOUR OWN SOUNDTRACKS", fontSize = 9.sp, color = muted, letterSpacing = 1.3.sp)
+                    Text("MADE BY YOU", fontSize = 9.sp, color = muted, letterSpacing = 1.8.sp)
+                    Text("Playlists", fontSize = 37.sp, fontWeight = FontWeight.Medium, color = ink, letterSpacing = (-1.8).sp)
+                    Text("${playlists.size} personal collections", fontSize = 11.sp, color = muted)
                 }
                 Button(onClick = { name = ""; showCreate = true }, shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = ink, contentColor = Cream)) {
                     Icon(Icons.Rounded.Add, null, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(4.dp)); Text("NEW", fontSize = 10.sp)
@@ -489,7 +490,7 @@ private fun LyricsPage(lines: List<LyricLine>, position: Long, ink: Color, panel
     val state = rememberLazyListState()
     LaunchedEffect(current, lines.size) { if (lines.isNotEmpty()) state.animateScrollToItem(current) }
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back", tint = ink) }; Text("Lyrics", fontSize = 30.sp, color = ink, modifier = Modifier.weight(1f)); Button(onClick = onOpen) { Text("OPEN .LRC") } }
+        Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back", tint = ink) }; Column(Modifier.weight(1f)) { Text("NOW PLAYING", fontSize = 8.sp, color = muted, letterSpacing = 1.4.sp); Text("Lyrics", fontSize = 30.sp, color = ink) }; Button(onClick = onOpen) { Text("OPEN .LRC") } }
         if (lines.isEmpty()) { EmptyCard("Lyrics are missing.", "Choose a synced .lrc file from your device to display and follow lyrics.", "OPEN LYRICS", onOpen, ink, panel, muted) }
         else LazyColumn(state = state, modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(18.dp), contentPadding = PaddingValues(vertical = 22.dp)) { items(lines.size) { index -> Text(lines[index].text, fontSize = if (index == current) 22.sp else 16.sp, fontWeight = if (index == current) FontWeight.SemiBold else FontWeight.Normal, color = if (index == current) ink else muted.copy(alpha = .65f), modifier = Modifier.fillMaxWidth()) } }
     }
@@ -501,11 +502,11 @@ private fun EqualizerPage(audioSessionId: Int, ink: Color, panel: Color, muted: 
     var enabled by remember(eq) { mutableStateOf(eq.enabled) }
     var levels by remember(eq) { mutableStateOf((0 until eq.bands).map { eq.level(it).toFloat() }) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back", tint = ink) }; Text("Equalizer", fontSize = 30.sp, color = ink) } }
+        item { Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back", tint = ink) }; Column { Text("SOUND SHAPING", fontSize = 8.sp, color = muted, letterSpacing = 1.4.sp); Text("Equalizer", fontSize = 30.sp, color = ink) } } }
         item { SettingToggle("Equalizer", "Adjust the device audio effect", enabled, { enabled = it; eq.setEnabled(it) }, ink, panel, muted) }
-        item { Text("PRESETS", fontSize = 9.sp, color = muted, letterSpacing = 1.5.sp) }
+        item { Text("START WITH A PRESET", fontSize = 9.sp, color = muted, letterSpacing = 1.5.sp) }
         items(eq.presetNames) { preset -> Button(onClick = { val index = eq.presetNames.indexOf(preset); if (index >= 0) { eq.usePreset(index); levels = (0 until eq.bands).map { eq.level(it).toFloat() } } }, colors = ButtonDefaults.buttonColors(containerColor = panel, contentColor = ink)) { Text(preset) } }
-        item { Text("BANDS", fontSize = 9.sp, color = muted, letterSpacing = 1.5.sp) }
+        item { Text("FINE TUNE", fontSize = 9.sp, color = muted, letterSpacing = 1.5.sp) }
         items((0 until eq.bands).toList()) { band -> Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(panel).padding(12.dp)) { Row { Text((eq.frequency(band).toString() + " Hz"), Modifier.weight(1f), color = ink); Text(levels[band].toInt().toString() + " dB", color = muted) }; Slider(value = levels[band], onValueChange = { v -> levels = levels.toMutableList().also { it[band] = v }; eq.setBandLevel(band, v.toInt()) }, valueRange = eq.range[0].toFloat()..eq.range[1].toFloat(), enabled = enabled) } }
         item { Text("Hardware support and available bands depend on your device.", fontSize = 10.sp, color = muted) }
     }
