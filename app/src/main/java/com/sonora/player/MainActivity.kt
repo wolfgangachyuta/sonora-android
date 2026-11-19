@@ -654,7 +654,7 @@ private fun BottomNav(selected: String, ink: Color, muted: Color, onSelect: (Str
                 .selectable(selected = active, role = Role.Tab, onClick = { onSelect(destination) })
                 .padding(vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 Icon(icon, contentDescription = null, tint = if (active) ink else muted, modifier = Modifier.size(20.dp))
-                Text(label, fontSize = 8.sp, fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal, color = if (active) ink else muted, maxLines = 1)
+                Text(label, fontSize = 9.sp, fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal, color = if (active) ink else muted, maxLines = 1)
             }
         }
     }
