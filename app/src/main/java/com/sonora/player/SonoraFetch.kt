@@ -20,6 +20,7 @@ object SonoraFetch {
     @Volatile private var activeProcessId: String? = null
     private val mutableStatus = MutableStateFlow(FetchStatus())
     val status = mutableStatus.asStateFlow()
+    fun updateStatus(value: FetchStatus) { mutableStatus.value = value }
 
     suspend fun initialize(context: Context) = withContext(Dispatchers.IO) {
         YoutubeDL.getInstance().init(context.applicationContext)
@@ -55,7 +56,10 @@ object SonoraFetch {
                 addOption("-o", File(folder, "%(title)s.%(ext)s").absolutePath)
             }
             YoutubeDL.getInstance().execute(request, { progress, eta ->
-                onProgress(progress.toInt().coerceIn(0, 100), eta.toInt().coerceAtLeast(0))
+                val percent = progress.toInt().coerceIn(0, 100)
+                val remaining = eta.toInt().coerceAtLeast(0)
+                mutableStatus.value = mutableStatus.value.copy(active = true, progress = percent, etaSeconds = remaining, message = "Extracting audio…")
+                onProgress(percent, remaining)
             }, processId)
             val created = folder.listFiles()
                 ?.filter { it.isFile && it.absolutePath !in before && it.extension.equals("mp3", true) }
