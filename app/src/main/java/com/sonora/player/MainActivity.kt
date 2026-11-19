@@ -17,6 +17,8 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -573,7 +575,7 @@ private fun EqualizerPage(audioSessionId: Int, ink: Color, panel: Color, muted: 
 }
 @Composable
 private fun SettingsPage(dark: Boolean, onDark: (Boolean) -> Unit, shuffle: Boolean, onShuffle: (Boolean) -> Unit, repeat: Int, onRepeat: (Int) -> Unit, trackCount: Int, ink: Color, panel: Color, muted: Color, onEqualizer: () -> Unit) {
-    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Preferences", fontSize = 36.sp, fontWeight = FontWeight.Medium, letterSpacing = (-1.5).sp, color = ink)
         Text("MAKE SONORA YOUR OWN", fontSize = 9.sp, color = muted, letterSpacing = 1.4.sp)
         SettingToggle("Dark appearance", "A softer interface after dark.", dark, onDark, ink, panel, muted)
