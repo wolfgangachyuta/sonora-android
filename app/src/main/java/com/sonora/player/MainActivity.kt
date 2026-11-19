@@ -31,6 +31,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -591,7 +593,7 @@ private fun SettingsPage(dark: Boolean, onDark: (Boolean) -> Unit, shuffle: Bool
 private fun SettingToggle(title: String, description: String, value: Boolean, onChange: (Boolean) -> Unit, ink: Color, panel: Color, muted: Color) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(panel).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) { Text(title, fontWeight = FontWeight.SemiBold, color = ink); Text(description, fontSize = 10.sp, color = muted) }
-        Switch(value, onChange)
+        Switch(value, onChange, modifier = Modifier.semantics { contentDescription = title })
     }
 }
 @Composable
@@ -610,8 +612,8 @@ private fun MiniPlayer(track: AudioTrack, playing: Boolean, position: Long, dura
                 Text(track.title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(track.artist, fontSize = 10.sp, color = muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            IconButton(onClick = onToggle) { Icon(if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, null, tint = ink) }
-            IconButton(onClick = onNext) { Icon(Icons.Rounded.SkipNext, null, tint = ink) }
+            IconButton(onClick = onToggle) { Icon(if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (playing) "Pause playback" else "Start playback", tint = ink) }
+            IconButton(onClick = onNext) { Icon(Icons.Rounded.SkipNext, "Next track", tint = ink) }
         }
         LinearProgressIndicator(progress = { position.coerceIn(0L, safe).toFloat() / safe }, modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp).height(2.dp), color = AccentDeep, trackColor = panel)
     }
@@ -680,13 +682,13 @@ private fun DashboardTile(label: String, value: String, modifier: Modifier, ink:
 }
 @Composable
 private fun FilterPill(label: String, active: Boolean, ink: Color, panel: Color, onClick: () -> Unit) {
-    Text(label, modifier = Modifier.clip(RoundedCornerShape(50)).background(if (active) ink else panel).clickable { onClick() }.padding(horizontal = 13.dp, vertical = 8.dp), color = if (active) Cream else ink, fontSize = 9.sp)
+    Text(label, modifier = Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(50)).background(if (active) ink else panel).selectable(selected = active, role = Role.Tab, onClick = onClick).padding(horizontal = 13.dp, vertical = 8.dp), color = if (active) Cream else ink, fontSize = 9.sp)
 }
 @Composable
 private fun SearchField(value: String, onValue: (String) -> Unit, ink: Color, panel: Color, muted: Color) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp)).background(panel).padding(horizontal = 13.dp, vertical = 13.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(Icons.Rounded.Search, null, tint = muted, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(9.dp))
-        BasicTextField(value, onValue, singleLine = true, textStyle = MaterialTheme.typography.bodyMedium.copy(color = ink), decorationBox = { inner -> if (value.isEmpty()) Text("Songs, artists, albums…", color = muted, fontSize = 12.sp); inner() }, modifier = Modifier.fillMaxWidth())
+        BasicTextField(value, onValue, singleLine = true, textStyle = MaterialTheme.typography.bodyMedium.copy(color = ink), decorationBox = { inner -> if (value.isEmpty()) Text("Songs, artists, albums…", color = muted, fontSize = 12.sp); inner() }, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Search songs, artists and albums" })
     }
 }
 @Composable
