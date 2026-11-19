@@ -32,6 +32,7 @@ class SonoraFetchService : Service() {
                 downloadJob?.cancel()
                 SonoraFetch.updateStatus(FetchStatus(message = "Download cancelled."))
                 stopForeground(STOP_FOREGROUND_REMOVE)
+                notificationManager().cancel(NOTIFICATION_ID)
                 stopSelf(startId)
             }
             ACTION_DOWNLOAD -> {
@@ -54,15 +55,13 @@ class SonoraFetchService : Service() {
                             SonoraFetch.updateStatus(current.copy(active = true, progress = percent, etaSeconds = eta, message = "Downloading audio…"))
                         }
                         SonoraFetch.updateStatus(FetchStatus(message = "Download complete.", progress = 100, savedPath = file.absolutePath))
-                        notificationManager().notify(NOTIFICATION_ID, buildNotification("Download complete", 100, false).also {
-                            // Completed downloads are no longer ongoing.
-                        })
+                        notificationManager().notify(NOTIFICATION_ID, buildNotification("Download complete", 100, false, cancellable = false))
                     } catch (cancelled: CancellationException) {
                         SonoraFetch.updateStatus(FetchStatus(message = "Download cancelled."))
                         throw cancelled
                     } catch (failure: Throwable) {
                         SonoraFetch.updateStatus(FetchStatus(error = failure.message ?: "Download failed."))
-                        notificationManager().notify(NOTIFICATION_ID, buildNotification("Download failed", 0, false))
+                        notificationManager().notify(NOTIFICATION_ID, buildNotification("Download failed", 0, false, cancellable = false))
                     } finally {
                         stopForeground(STOP_FOREGROUND_DETACH)
                         stopSelf(startId)
@@ -95,7 +94,7 @@ class SonoraFetchService : Service() {
         }
     }
 
-    private fun buildNotification(text: String, progress: Int, indeterminate: Boolean): Notification {
+    private fun buildNotification(text: String, progress: Int, indeterminate: Boolean, cancellable: Boolean = true): Notification {
         val openApp = PendingIntent.getActivity(
             this, 1, Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -112,7 +111,7 @@ class SonoraFetchService : Service() {
             .setOngoing(indeterminate || progress in 1..99)
             .setOnlyAlertOnce(true)
             .setProgress(100, progress, indeterminate)
-            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Cancel", cancel)
+            .apply { if (cancellable) addAction(android.R.drawable.ic_menu_close_clear_cancel, "Cancel", cancel) }
             .build()
     }
 
