@@ -55,8 +55,8 @@ private val PanelLight = Color(0xFFE3E4E7)
 private val PanelDark = Color(0xFF171A21)
 private val MutedLight = Color(0xFF77796F)
 private val MutedDark = Color(0xFFA3AAA0)
-private val Accent = Color(0xFFB9D0FF)
-val AccentDeep = Color(0xFF536CBA)
+private val Accent = Color(0xFFF2B8B5)
+val AccentDeep = Color(0xFFB3261E)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -540,28 +540,31 @@ private fun InfoSetting(title: String, desc: String, ink: Color, panel: Color, m
 
 @Composable
 private fun MiniPlayer(track: AudioTrack, playing: Boolean, position: Long, duration: Long, ink: Color, panel: Color, muted: Color, onToggle: () -> Unit, onNext: () -> Unit, onOpen: () -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp)) {
-        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(panel).clickable(onClick = onOpen).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            AlbumArtwork(track.albumId, Modifier.size(44.dp).clip(RoundedCornerShape(10.dp)))
-            Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f)) { Text(track.title, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis); Text(track.artist, fontSize = 9.sp, color = muted, maxLines = 1) }
+    val safe = duration.coerceAtLeast(1L)
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp)) {
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(panel).clickable(onClick = onOpen).padding(start = 7.dp, end = 8.dp, top = 7.dp, bottom = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+            AlbumArtwork(track.albumId, Modifier.size(48.dp).clip(CircleShape))
+            Spacer(Modifier.width(11.dp))
+            Column(Modifier.weight(1f)) {
+                Text(track.title, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(track.artist, fontSize = 10.sp, color = muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
             IconButton(onClick = onToggle) { Icon(if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, null, tint = ink) }
             IconButton(onClick = onNext) { Icon(Icons.Rounded.SkipNext, null, tint = ink) }
         }
-        val safe = duration.coerceAtLeast(1)
-        LinearProgressIndicator(progress = { position.coerceIn(0, safe).toFloat() / safe }, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).height(2.dp), color = AccentDeep, trackColor = panel)
+        LinearProgressIndicator(progress = { position.coerceIn(0L, safe).toFloat() / safe }, modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp).height(2.dp), color = AccentDeep, trackColor = panel)
     }
 }
 
 @Composable
 private fun BottomNav(selected: String, ink: Color, muted: Color, onSelect: (String) -> Unit) {
-    val destinations = listOf("Listen" to Icons.Rounded.Home, "Library" to Icons.Rounded.LibraryMusic, "Albums" to Icons.Rounded.Album, "Playlists" to Icons.Rounded.QueueMusic, "You" to Icons.Rounded.Person)
-    Row(Modifier.fillMaxWidth().padding(horizontal = 5.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-        destinations.forEach { (label, icon) ->
-            val actual = if (label == "You") "Statistics" else label
-            Column(Modifier.clip(RoundedCornerShape(12.dp)).clickable { onSelect(actual) }.padding(horizontal = 9.dp, vertical = 3.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(icon, label, tint = if (selected == actual) ink else muted, modifier = Modifier.size(20.dp))
-                Text(label, fontSize = 8.sp, color = if (selected == actual) ink else muted)
+    val destinations = listOf(Triple("Listen", Icons.Rounded.Home, "Listen"), Triple("Library", Icons.Rounded.LibraryMusic, "Library"), Triple("Albums", Icons.Rounded.Album, "Albums"), Triple("Playlists", Icons.Rounded.QueueMusic, "Playlists"), Triple("You", Icons.Rounded.Person, "Statistics"))
+    Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp).clip(RoundedCornerShape(30.dp)).background(if (ink == Night) PanelDark else PanelLight).padding(horizontal = 5.dp, vertical = 7.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+        destinations.forEach { (label, icon, destination) ->
+            val active = selected == destination
+            Column(Modifier.weight(1f).clip(RoundedCornerShape(24.dp)).background(if (active) Accent.copy(alpha = .32f) else Color.Transparent).clickable { onSelect(destination) }.padding(vertical = 5.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(icon, contentDescription = label, tint = if (active) ink else muted, modifier = Modifier.size(20.dp))
+                Text(label, fontSize = 9.sp, fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal, color = if (active) ink else muted)
             }
         }
     }
