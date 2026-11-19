@@ -1,6 +1,7 @@
 package com.sonora.player
 
 import android.Manifest
+import android.app.Activity
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -46,6 +47,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -81,6 +83,14 @@ private fun SonoraApp() {
     val paper = if (darkMode) Night else Cream
     val panel = if (darkMode) PanelDark else PanelLight
     val muted = if (darkMode) MutedDark else MutedLight
+    SideEffect {
+        (context as? Activity)?.window?.let { window ->
+            WindowCompat.getInsetsController(window, window.decorView).apply {
+                isAppearanceLightStatusBars = !darkMode
+                isAppearanceLightNavigationBars = !darkMode
+            }
+        }
+    }
     val fallbackPlayer = remember { ExoPlayer.Builder(context).build().apply { repeatMode = Player.REPEAT_MODE_OFF } }
     var player by remember { mutableStateOf<Player>(fallbackPlayer) }
     DisposableEffect(context, fallbackPlayer) {
