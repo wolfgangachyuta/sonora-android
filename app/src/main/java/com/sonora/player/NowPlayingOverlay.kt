@@ -158,7 +158,7 @@ private fun VinylRecord(
             .graphicsLayer { rotationZ = rotation }
             .semantics { contentDescription = "Vinyl record. Drag around the record to seek through the track." }
             .pointerInput(duration, revolutionDurationMs) {
-                val radius = size.minDimension / 2f
+                val radius = minOf(size.width, size.height) / 2f
                 var previousAngle: Float? = null
                 var dragPosition = 0L
                 var isDragging = false
@@ -196,7 +196,7 @@ private fun VinylRecord(
         contentAlignment = Alignment.Center
     ) {
         Canvas(Modifier.fillMaxSize()) {
-            val radius = size.minDimension / 2f
+            val radius = minOf(size.width, size.height) / 2f
             drawCircle(Color(0xFF171719), radius = radius)
             drawCircle(Color(0xFF252528), radius = radius * .96f)
             listOf(.69f, .77f, .84f, .91f).forEachIndexed { index, ratio ->
