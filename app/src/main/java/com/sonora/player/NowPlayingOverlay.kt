@@ -81,7 +81,7 @@ fun NowPlayingOverlay(
                 }
                 Spacer(Modifier.height(12.dp))
                 Box(Modifier.fillMaxWidth().aspectRatio(1f), contentAlignment = Alignment.Center) {
-                    if (vinylMode) VinylRecord(track.albumId, position, safeDuration, playing, backdrop, onSeek)
+                    if (vinylMode) VinylRecord(track.albumId, position, safeDuration, backdrop, onSeek)
                     else Box(Modifier.fillMaxSize(.88f).clip(RoundedCornerShape(28.dp))
                         .background(Brush.linearGradient(listOf(Color(0xFF342B2B), Color(0xFF9A6960), Color(0xFFD7BCA0))))) {
                         AlbumArtwork(track.albumId, Modifier.fillMaxSize().clip(RoundedCornerShape(28.dp)))
@@ -137,7 +137,7 @@ fun NowPlayingOverlay(
 
 @Composable
 private fun VinylRecord(
-    albumId: Long?, position: Long, duration: Long, playing: Boolean,
+    albumId: Long?, position: Long, duration: Long,
     backdrop: Color, onSeek: (Long) -> Unit
 ) {
     val rotation by animateFloatAsState(
