@@ -18,7 +18,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -26,6 +25,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.runtime.setValue
 import kotlin.math.atan2
 import kotlin.math.PI
@@ -140,7 +141,7 @@ private fun VinylRecord(
     backdrop: Color, onSeek: (Long) -> Unit
 ) {
     val rotation by animateFloatAsState(
-        targetValue = if (playing) ((position % 24_000L).toFloat() / 24_000f) * 360f else 0f,
+        targetValue = ((position % 24_000L).toFloat() / 24_000f) * 360f,
         animationSpec = tween(durationMillis = 400, easing = LinearEasing),
         label = "vinyl-rotation"
     )
@@ -148,6 +149,7 @@ private fun VinylRecord(
     Box(
         Modifier.fillMaxSize(.92f)
             .graphicsLayer { rotationZ = rotation }
+            .semantics { contentDescription = "Vinyl record. Drag around the record to seek through the track." }
             .pointerInput(duration) {
                 var previousAngle: Float? = null
                 var dragPosition = 0L
