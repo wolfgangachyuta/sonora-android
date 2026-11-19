@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
 data class FetchTrackInfo(val title: String, val durationSeconds: Long)
 data class FetchStatus(val active: Boolean = false, val progress: Int = 0, val etaSeconds: Int = 0, val message: String = "", val savedPath: String? = null, val error: String? = null)
@@ -65,7 +67,11 @@ object SonoraFetch {
                 ?.filter { it.isFile && it.absolutePath !in before && it.extension.equals("mp3", true) }
                 ?.maxByOrNull { it.lastModified() }
                 ?: error("Download completed but the MP3 file could not be located")
-            MediaScannerConnection.scanFile(context, arrayOf(created.absolutePath), arrayOf("audio/mpeg"), null)
+            suspendCancellableCoroutine<Unit> { continuation ->
+                MediaScannerConnection.scanFile(context, arrayOf(created.absolutePath), arrayOf("audio/mpeg")) { _, _ ->
+                    if (continuation.isActive) continuation.resume(Unit)
+                }
+            }
             created
         } finally {
             activeProcessId = null
