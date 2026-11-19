@@ -252,8 +252,9 @@ private fun HomePage(tracks: List<AudioTrack>, current: AudioTrack?, playing: Bo
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         item {
             Column {
-                Text("A PERSONAL SOUNDTRACK", fontSize = 9.sp, color = muted, letterSpacing = 1.8.sp)
-                Text("Listen deeply.", fontSize = 36.sp, fontWeight = FontWeight.Medium, letterSpacing = (-1.8).sp, color = ink)
+                Text("YOUR MUSIC, YOUR MOMENT", fontSize = 9.sp, color = muted, letterSpacing = 1.9.sp)
+                Text("Listen deeply.", fontSize = 39.sp, fontWeight = FontWeight.Medium, letterSpacing = (-2).sp, color = ink)
+                Text("A quieter place for the music you love.", fontSize = 11.sp, color = muted)
             }
         }
         item {
@@ -261,7 +262,7 @@ private fun HomePage(tracks: List<AudioTrack>, current: AudioTrack?, playing: Bo
         }
         item {
             Row(verticalAlignment = Alignment.Bottom) {
-                Text("YOUR WORLD", fontSize = 10.sp, letterSpacing = 1.7.sp, color = muted, modifier = Modifier.weight(1f))
+                Text("YOUR COLLECTION", fontSize = 10.sp, letterSpacing = 1.7.sp, color = muted, modifier = Modifier.weight(1f))
                 Text("LOCAL COLLECTION", fontSize = 8.sp, color = muted)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 10.dp)) {
@@ -272,8 +273,8 @@ private fun HomePage(tracks: List<AudioTrack>, current: AudioTrack?, playing: Bo
         }
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("RECENTLY PLAYED", color = muted, fontSize = 9.sp, letterSpacing = 1.5.sp, modifier = Modifier.weight(1f))
-                Text("ALL MUSIC ↗", color = ink, fontSize = 9.sp, modifier = Modifier.clickable(onClick = onLibrary))
+                Column(Modifier.weight(1f)) { Text("PICK UP WHERE YOU LEFT OFF", color = muted, fontSize = 9.sp, letterSpacing = 1.4.sp); Text("Recently played", color = ink, fontSize = 21.sp, fontWeight = FontWeight.Medium) }
+                Text("SEE ALL ↗", color = ink, fontSize = 9.sp, modifier = Modifier.clickable(onClick = onLibrary))
             }
         }
         if (recentTracks.isEmpty()) item { EmptyCard("Your listening story starts here.", "Scan the device to discover the music already on it.", "SCAN MUSIC", onScan, ink, panel, muted) }
@@ -533,12 +534,12 @@ private fun StatsPage(tracks: List<AudioTrack>, counts: Map<String, Int>, recent
     val topArtists = tracks.groupBy { it.artist }.map { it.key to it.value.sumOf { t -> counts[t.id.toString()] ?: 0 } }.sortedByDescending { it.second }.take(5)
     val recent = recentIds.mapNotNull { id -> tracks.firstOrNull { it.id.toString() == id } }.distinctBy { it.id }.take(6)
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { Column { Text("The story so far.", fontSize = 35.sp, fontWeight = FontWeight.Medium, letterSpacing = (-1.5).sp, color = ink); Text("A RECORD OF YOUR SONORA SESSIONS", fontSize = 9.sp, letterSpacing = 1.4.sp, color = muted) } }
+        item { Column(verticalArrangement = Arrangement.spacedBy(4.dp)) { Text("YOUR LISTENING", fontSize = 9.sp, color = muted, letterSpacing = 1.8.sp); Text("The story so far.", fontSize = 36.sp, fontWeight = FontWeight.Medium, letterSpacing = (-1.7).sp, color = ink); Text("A little record of what you play.", fontSize = 11.sp, color = muted) } }
         item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { DashboardTile("TRACKS", tracks.size.toString(), Modifier.weight(1f), ink, panel, muted); DashboardTile("PLAY COUNTS", totalPlays.toString(), Modifier.weight(1f), ink, panel, muted); DashboardTile("ARTISTS", tracks.map { it.artist }.distinct().size.toString(), Modifier.weight(1f), ink, panel, muted) } }
-        item { Text("MOST PLAYED", fontSize = 9.sp, color = muted, letterSpacing = 1.5.sp) }
+        item { Text("IN HEAVY ROTATION", fontSize = 9.sp, color = muted, letterSpacing = 1.5.sp) }
         if (mostPlayed.isEmpty()) item { Text("Play some music. Your favourites in rotation will appear here.", color = muted, fontSize = 12.sp) }
         items(mostPlayed, key = { it.id }) { TrackRow(it, false, {}, ink, muted, counts[it.id.toString()] ?: 0) }
-        item { Text("TOP ARTISTS", fontSize = 9.sp, color = muted, letterSpacing = 1.5.sp) }
+        item { Text("FAVOURITE ARTISTS", fontSize = 9.sp, color = muted, letterSpacing = 1.5.sp) }
         if (topArtists.isEmpty()) item { Text("Artist stats will grow as you listen.", color = muted, fontSize = 12.sp) }
         items(topArtists.filter { it.second > 0 }, key = { it.first }) { row ->
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(panel).padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
