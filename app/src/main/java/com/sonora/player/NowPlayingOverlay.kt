@@ -53,6 +53,8 @@ fun NowPlayingOverlay(
     val secondary = if (dark) Color(0xFFAAA99F) else Color(0xFF77796F)
     val accent = Color(0xFFB3261E)
     var vinylMode by remember { mutableStateOf(true) }
+    var standardVinylSpeed by remember { mutableStateOf(false) }
+    val vinylRevolutionMs = if (standardVinylSpeed) 1_800L else 24_000L
 
     Surface(Modifier.fillMaxSize(), color = backdrop, contentColor = foreground) {
         Box(Modifier.fillMaxSize()) {
@@ -74,14 +76,19 @@ fun NowPlayingOverlay(
                 }
 
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                    SingleChoiceSegmentedButtonRow {
-                        SegmentedButton(selected = vinylMode, onClick = { vinylMode = true }, shape = SegmentedButtonDefaults.itemShape(0, 2)) { Text("VINYL", fontSize = 9.sp, letterSpacing = 1.sp) }
-                        SegmentedButton(selected = !vinylMode, onClick = { vinylMode = false }, shape = SegmentedButtonDefaults.itemShape(1, 2)) { Text("ARTWORK", fontSize = 9.sp, letterSpacing = 1.sp) }
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SingleChoiceSegmentedButtonRow {
+                            SegmentedButton(selected = vinylMode, onClick = { vinylMode = true }, shape = SegmentedButtonDefaults.itemShape(0, 2)) { Text("VINYL", fontSize = 9.sp, letterSpacing = 1.sp) }
+                            SegmentedButton(selected = !vinylMode, onClick = { vinylMode = false }, shape = SegmentedButtonDefaults.itemShape(1, 2)) { Text("ARTWORK", fontSize = 9.sp, letterSpacing = 1.sp) }
+                        }
+                        if (vinylMode) TextButton(onClick = { standardVinylSpeed = !standardVinylSpeed }, contentPadding = PaddingValues(horizontal = 7.dp, vertical = 4.dp)) {
+                            Text(if (standardVinylSpeed) "33 RPM" else "SLOW", fontSize = 8.sp, letterSpacing = .6.sp)
+                        }
                     }
                 }
                 Spacer(Modifier.height(12.dp))
                 Box(Modifier.fillMaxWidth().aspectRatio(1f), contentAlignment = Alignment.Center) {
-                    if (vinylMode) VinylRecord(track.albumId, position, safeDuration, backdrop, onSeek)
+                    if (vinylMode) VinylRecord(track.albumId, position, safeDuration, vinylRevolutionMs, backdrop, onSeek)
                     else Box(Modifier.fillMaxSize(.88f).clip(RoundedCornerShape(28.dp))
                         .background(Brush.linearGradient(listOf(Color(0xFF342B2B), Color(0xFF9A6960), Color(0xFFD7BCA0))))) {
                         AlbumArtwork(track.albumId, Modifier.fillMaxSize().clip(RoundedCornerShape(28.dp)))
@@ -137,11 +144,11 @@ fun NowPlayingOverlay(
 
 @Composable
 private fun VinylRecord(
-    albumId: Long?, position: Long, duration: Long,
+    albumId: Long?, position: Long, duration: Long, revolutionDurationMs: Long,
     backdrop: Color, onSeek: (Long) -> Unit
 ) {
     val rotation by animateFloatAsState(
-        targetValue = ((position % 24_000L).toFloat() / 24_000f) * 360f,
+        targetValue = ((position % revolutionDurationMs).toFloat() / revolutionDurationMs.toFloat()) * 360f,
         animationSpec = tween(durationMillis = 400, easing = LinearEasing),
         label = "vinyl-rotation"
     )
@@ -150,7 +157,7 @@ private fun VinylRecord(
         Modifier.fillMaxSize(.92f)
             .graphicsLayer { rotationZ = rotation }
             .semantics { contentDescription = "Vinyl record. Drag around the record to seek through the track." }
-            .pointerInput(duration) {
+            .pointerInput(duration, revolutionDurationMs) {
                 var previousAngle: Float? = null
                 var dragPosition = 0L
                 var isDragging = false
@@ -176,7 +183,7 @@ private fun VinylRecord(
                             var delta = angle - old
                             if (delta > PI) delta -= (2.0 * PI).toFloat()
                             if (delta < -PI) delta += (2.0 * PI).toFloat()
-                            dragPosition = (dragPosition + (delta / (2.0 * PI) * 24_000.0).toLong())
+                            dragPosition = (dragPosition + (delta / (2.0 * PI) * revolutionDurationMs.toDouble()).toLong())
                                 .coerceIn(0L, duration.coerceAtLeast(1L))
                             onSeek(dragPosition)
                         }
