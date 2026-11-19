@@ -44,7 +44,7 @@ object SonoraFetch {
             "SONORA"
         )
         if (!folder.exists() && !folder.mkdirs()) error("Could not create Downloads/SONORA")
-        val before = folder.listFiles()?.map { it.absolutePath }?.toSet().orEmpty()
+        val startedAt = System.currentTimeMillis()
         val processId = "sonora-fetch-" + UUID.randomUUID().toString()
         activeProcessId = processId
         try {
@@ -64,7 +64,7 @@ object SonoraFetch {
                 onProgress(percent, remaining)
             }
             val created = folder.listFiles()
-                ?.filter { it.isFile && it.absolutePath !in before && it.extension.equals("mp3", true) }
+                ?.filter { it.isFile && it.extension.equals("mp3", true) && it.lastModified() >= startedAt - 1_000L }
                 ?.maxByOrNull { it.lastModified() }
                 ?: error("Download completed but the MP3 file could not be located")
             suspendCancellableCoroutine<Unit> { continuation ->
