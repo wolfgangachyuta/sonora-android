@@ -189,10 +189,7 @@ private fun SonoraApp() {
     }
     fun requestScan() { if (hasPermission) loading = true else permissionLauncher.launch(audioPermission()) }
     LaunchedEffect(fetchStatus.savedPath) {
-        if (fetchStatus.savedPath != null) {
-            delay(900)
-            requestScan()
-        }
+        if (fetchStatus.savedPath != null) requestScan()
     }
 
     MaterialTheme(colorScheme = if (darkMode) darkColorScheme(primary = Accent, background = Night, surface = PanelDark, onSurface = Cream, onPrimary = Night) else lightColorScheme(primary = Night, background = Cream, surface = Cream, onSurface = Night, secondary = Accent)) {
