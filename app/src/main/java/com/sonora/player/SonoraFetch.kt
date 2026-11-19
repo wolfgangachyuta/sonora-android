@@ -20,13 +20,31 @@ data class FetchStatus(val active: Boolean = false, val progress: Int = 0, val e
 
 object SonoraFetch {
     @Volatile private var activeProcessId: String? = null
+    @Volatile private var updaterChecked = false
     private val mutableStatus = MutableStateFlow(FetchStatus())
     val status = mutableStatus.asStateFlow()
     fun updateStatus(value: FetchStatus) { mutableStatus.value = value }
 
     suspend fun initialize(context: Context) = withContext(Dispatchers.IO) {
-        YoutubeDL.getInstance().init(context.applicationContext)
-        FFmpeg.getInstance().init(context.applicationContext)
+        val appContext = context.applicationContext
+        YoutubeDL.getInstance().init(appContext)
+
+        // Refresh the bundled yt-dlp binary from the official stable channel once
+        // per app process. Keep the bundled binary if GitHub is temporarily unavailable.
+        if (!updaterChecked) {
+            try {
+                YoutubeDL.getInstance().updateYoutubeDL(
+                    appContext,
+                    YoutubeDL.UpdateChannel.STABLE
+                )
+            } catch (_: Exception) {
+                // Do not block authorised downloads when the update endpoint is unavailable.
+            } finally {
+                updaterChecked = true
+            }
+        }
+
+        FFmpeg.getInstance().init(appContext)
     }
 
     suspend fun inspect(url: String): FetchTrackInfo = withContext(Dispatchers.IO) {
@@ -54,6 +72,13 @@ object SonoraFetch {
                 addOption("--audio-quality", "0")
                 addOption("--no-playlist")
                 addOption("--embed-metadata")
+                // Thumbnail requests can fail independently with HTTP 403; SONORA only needs audio.
+                addOption("--no-write-thumbnail")
+                addOption("--no-embed-thumbnail")
+                addOption("--retries", "5")
+                addOption("--fragment-retries", "5")
+                addOption("--extractor-retries", "3")
+                addOption("--socket-timeout", "20")
                 addOption("--no-mtime")
                 addOption("-o", File(folder, "%(title)s.%(ext)s").absolutePath)
             }
