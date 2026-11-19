@@ -180,7 +180,7 @@ private fun SonoraApp() {
     MaterialTheme(colorScheme = if (darkMode) darkColorScheme(primary = Accent, background = Night, surface = PanelDark, onSurface = Cream, onPrimary = Night) else lightColorScheme(primary = Night, background = Cream, surface = Cream, onSurface = Night, secondary = Accent)) {
         Surface(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing), color = paper, contentColor = ink) {
             Column(Modifier.fillMaxSize()) {
-                TopBrand(ink, muted, onSearch = { tab = "Search" }, onSettings = { tab = "Settings" })
+                TopBrand(ink, muted, onSearch = { tab = "Search" }, onFavourites = { tab = "Favourites" }, onSettings = { tab = "Settings" })
                 AnimatedContent(tab, label = "main-content", modifier = Modifier.weight(1f)) { destination ->
                     when (destination) {
                         "Library" -> LibraryPage(tracks, loading, hasPermission, query, { query = it }, { libraryFilter = it }, libraryFilter, ::requestScan, ::play, currentTrack, favorites, ::toggleFavorite, ink, paper, panel, muted)
@@ -235,13 +235,14 @@ private fun SonoraApp() {
 }
 
 @Composable
-private fun TopBrand(ink: Color, muted: Color, onSearch: () -> Unit, onSettings: () -> Unit) {
+private fun TopBrand(ink: Color, muted: Color, onSearch: () -> Unit, onFavourites: () -> Unit, onSettings: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text("SONORA", fontSize = 19.sp, fontWeight = FontWeight.Black, letterSpacing = 4.sp, color = ink)
             Text("THE ART OF LISTENING", fontSize = 8.sp, letterSpacing = 1.6.sp, color = muted)
         }
         IconButton(onClick = onSearch) { Icon(Icons.Rounded.Search, "Search your library", tint = ink) }
+        IconButton(onClick = onFavourites) { Icon(Icons.Rounded.FavoriteBorder, "Favourite tracks", tint = ink) }
         IconButton(onClick = onSettings) { Icon(Icons.Rounded.Tune, "Settings", tint = ink) }
     }
 }
