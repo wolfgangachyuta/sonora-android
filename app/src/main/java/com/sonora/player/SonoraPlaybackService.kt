@@ -10,6 +10,10 @@ import androidx.media3.session.MediaSessionService
  * its current in-activity player until controller wiring is completed.
  */
 class SonoraPlaybackService : MediaSessionService() {
+    companion object {
+        @Volatile var audioSessionId: Int = 0
+            private set
+    }
     private var player: ExoPlayer? = null
     private var mediaSession: MediaSession? = null
 
@@ -17,6 +21,7 @@ class SonoraPlaybackService : MediaSessionService() {
         super.onCreate()
         val exo = ExoPlayer.Builder(this).build()
         player = exo
+        audioSessionId = exo.audioSessionId
         mediaSession = MediaSession.Builder(this, exo).build()
     }
 
@@ -29,6 +34,7 @@ class SonoraPlaybackService : MediaSessionService() {
         }
         mediaSession = null
         player = null
+        audioSessionId = 0
         super.onDestroy()
     }
 }
