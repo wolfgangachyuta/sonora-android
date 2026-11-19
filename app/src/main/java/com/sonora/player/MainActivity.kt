@@ -299,7 +299,8 @@ private fun FeatureCard(current: AudioTrack?, playing: Boolean, ink: Color, pane
 private fun LibraryPage(tracks: List<AudioTrack>, loading: Boolean, permission: Boolean, query: String, onQuery: (String) -> Unit, onFilter: (String) -> Unit, filter: String, onScan: () -> Unit, onPlay: (AudioTrack) -> Unit, current: AudioTrack?, favorites: Set<String>, onFavorite: (AudioTrack) -> Unit, ink: Color, paper: Color, panel: Color, muted: Color) {
     val filtered = tracks.filter { (filter != "Favourites" || it.id.toString() in favorites) && (query.isBlank() || it.title.contains(query, true) || it.artist.contains(query, true) || it.album.contains(query, true)) }
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        Text("Your library", fontSize = 31.sp, fontWeight = FontWeight.Medium, letterSpacing = (-1.3).sp, color = ink)
+        Text("THE COLLECTION", fontSize = 9.sp, letterSpacing = 1.8.sp, color = muted)
+        Text("Your library", fontSize = 35.sp, fontWeight = FontWeight.Medium, letterSpacing = (-1.5).sp, color = ink)
         Text("${tracks.size} TRACKS · ON THIS DEVICE", fontSize = 9.sp, letterSpacing = 1.5.sp, color = muted)
         Spacer(Modifier.height(16.dp))
         SearchField(query, onQuery, ink, panel, muted)
@@ -329,13 +330,13 @@ private fun LibraryPage(tracks: List<AudioTrack>, loading: Boolean, permission: 
 private fun SearchPage(tracks: List<AudioTrack>, query: String, onQuery: (String) -> Unit, onPlay: (AudioTrack) -> Unit, current: AudioTrack?, ink: Color, panel: Color, muted: Color) {
     val results = if (query.isBlank()) emptyList() else tracks.filter { it.title.contains(query, true) || it.artist.contains(query, true) || it.album.contains(query, true) }
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        Text("Search", fontSize = 34.sp, fontWeight = FontWeight.Medium, letterSpacing = (-1.4).sp, color = ink)
-        Text("FIND THE SOUND", fontSize = 9.sp, letterSpacing = 1.6.sp, color = muted)
+        Text("DISCOVER YOUR LIBRARY", fontSize = 9.sp, letterSpacing = 1.8.sp, color = muted)
+        Text("Search", fontSize = 38.sp, fontWeight = FontWeight.Medium, letterSpacing = (-1.8).sp, color = ink)
         Spacer(Modifier.height(18.dp))
         SearchField(query, onQuery, ink, panel, muted)
         Spacer(Modifier.height(16.dp))
-        if (query.isBlank()) Text("Songs · albums · artists", fontSize = 12.sp, color = muted)
-        else if (results.isEmpty()) Text("No results. Try another search.", fontSize = 12.sp, color = muted)
+        if (query.isBlank()) Text("Search songs, albums and artists in your local collection.", fontSize = 12.sp, color = muted)
+        else if (results.isEmpty()) Text("No matches yet. Try another title, artist or album.", fontSize = 12.sp, color = muted)
         else LazyColumn { items(results, key = { it.id }) { TrackRow(it, current?.id == it.id, { onPlay(it) }, ink, muted) } }
     }
 }
@@ -343,7 +344,7 @@ private fun SearchPage(tracks: List<AudioTrack>, query: String, onQuery: (String
 @Composable
 private fun GroupedPage(title: String, groups: List<Pair<String, List<AudioTrack>>>, subtitle: (Pair<String, List<AudioTrack>>) -> String, onPlay: (Pair<String, List<AudioTrack>>) -> Unit, ink: Color, panel: Color, muted: Color) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        item { Column { Text(title, fontSize = 32.sp, fontWeight = FontWeight.Medium, color = ink, letterSpacing = (-1).sp); Text("${groups.size} ${title.uppercase()}", fontSize = 9.sp, color = muted, letterSpacing = 1.4.sp) } }
+        item { Column { Text(title, fontSize = 37.sp, fontWeight = FontWeight.Medium, color = ink, letterSpacing = (-1.8).sp); Text("${groups.size} ${title.uppercase()}", fontSize = 9.sp, color = muted, letterSpacing = 1.4.sp) } }
         if (groups.isEmpty()) item { EmptyCard("Your collection is empty.", "Scan your device to build your collection.", "GO TO LIBRARY", {}, ink, panel, muted) }
         items(groups, key = { it.first }) { group ->
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(panel).clickable { onPlay(group) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -362,8 +363,9 @@ private fun GroupedPage(title: String, groups: List<Pair<String, List<AudioTrack
 @Composable
 private fun TrackCollectionPage(title: String, tracks: List<AudioTrack>, onPlay: (AudioTrack) -> Unit, current: AudioTrack?, favorites: Set<String>, onFavorite: (AudioTrack) -> Unit, ink: Color, panel: Color, muted: Color) {
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        Text(title, fontSize = 32.sp, fontWeight = FontWeight.Medium, color = ink)
-        Text("${tracks.size} SAVED TRACKS", fontSize = 9.sp, letterSpacing = 1.4.sp, color = muted)
+        Text("SAVED FOR LATER", fontSize = 9.sp, letterSpacing = 1.8.sp, color = muted)
+        Text(title, fontSize = 37.sp, fontWeight = FontWeight.Medium, letterSpacing = (-1.8).sp, color = ink)
+        Text("${tracks.size} tracks you have kept close", fontSize = 11.sp, color = muted)
         if (tracks.isEmpty()) EmptyCard("Keep the songs close.", "Favourite a track from your library to find it here.", "OPEN LIBRARY", {}, ink, panel, muted)
         else LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) { items(tracks, key = { it.id }) { TrackRow(it, current?.id == it.id, { onPlay(it) }, ink, muted) } }
     }
@@ -463,7 +465,7 @@ private fun StatsPage(tracks: List<AudioTrack>, counts: Map<String, Int>, recent
     val topArtists = tracks.groupBy { it.artist }.map { it.key to it.value.sumOf { t -> counts[t.id.toString()] ?: 0 } }.sortedByDescending { it.second }.take(5)
     val recent = recentIds.mapNotNull { id -> tracks.firstOrNull { it.id.toString() == id } }.distinctBy { it.id }.take(6)
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { Column { Text("Your listening", fontSize = 31.sp, fontWeight = FontWeight.Medium, color = ink); Text("A RECORD OF YOUR SONORA SESSIONS", fontSize = 9.sp, letterSpacing = 1.4.sp, color = muted) } }
+        item { Column { Text("The story so far.", fontSize = 35.sp, fontWeight = FontWeight.Medium, letterSpacing = (-1.5).sp, color = ink); Text("A RECORD OF YOUR SONORA SESSIONS", fontSize = 9.sp, letterSpacing = 1.4.sp, color = muted) } }
         item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { DashboardTile("TRACKS", tracks.size.toString(), Modifier.weight(1f), ink, panel, muted); DashboardTile("PLAY COUNTS", totalPlays.toString(), Modifier.weight(1f), ink, panel, muted); DashboardTile("ARTISTS", tracks.map { it.artist }.distinct().size.toString(), Modifier.weight(1f), ink, panel, muted) } }
         item { Text("MOST PLAYED", fontSize = 9.sp, color = muted, letterSpacing = 1.5.sp) }
         if (mostPlayed.isEmpty()) item { Text("Play some music. Your favourites in rotation will appear here.", color = muted, fontSize = 12.sp) }
@@ -511,7 +513,7 @@ private fun EqualizerPage(audioSessionId: Int, ink: Color, panel: Color, muted: 
 @Composable
 private fun SettingsPage(dark: Boolean, onDark: (Boolean) -> Unit, shuffle: Boolean, onShuffle: (Boolean) -> Unit, repeat: Int, onRepeat: (Int) -> Unit, trackCount: Int, ink: Color, panel: Color, muted: Color, onEqualizer: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Preferences", fontSize = 32.sp, fontWeight = FontWeight.Medium, color = ink)
+        Text("Preferences", fontSize = 36.sp, fontWeight = FontWeight.Medium, letterSpacing = (-1.5).sp, color = ink)
         Text("MAKE SONORA YOUR OWN", fontSize = 9.sp, color = muted, letterSpacing = 1.4.sp)
         SettingToggle("Dark appearance", "A softer interface after dark.", dark, onDark, ink, panel, muted)
         SettingToggle("Shuffle", "Randomise the listening order.", shuffle, onShuffle, ink, panel, muted)
