@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.net.Uri
 import android.content.ContentUris
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.ComponentName
 import android.graphics.BitmapFactory
 import androidx.activity.ComponentActivity
@@ -84,7 +85,7 @@ private fun SonoraApp() {
     val panel = if (darkMode) PanelDark else PanelLight
     val muted = if (darkMode) MutedDark else MutedLight
     SideEffect {
-        (context as? Activity)?.window?.let { window ->
+        context.findActivity()?.window?.let { window ->
             WindowCompat.getInsetsController(window, window.decorView).apply {
                 isAppearanceLightStatusBars = !darkMode
                 isAppearanceLightNavigationBars = !darkMode
@@ -722,3 +723,9 @@ private fun EmptyCard(title: String, desc: String, action: String, onAction: () 
 private fun audioPermission(): String = if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO else Manifest.permission.READ_EXTERNAL_STORAGE
 private fun hasAudioPermission(context: Context): Boolean = ContextCompat.checkSelfPermission(context, audioPermission()) == PackageManager.PERMISSION_GRANTED
 fun formatDuration(ms: Long): String { val total = (ms / 1000).toInt(); return "${total / 60}:${(total % 60).toString().padStart(2, '0')}" }
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
