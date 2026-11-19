@@ -1,99 +1,41 @@
 # Build and test
 
-## Requirements
+## GitHub Actions — manual only
 
-- JDK 17
-- Android SDK with platform/build tools compatible with compileSdk 36
-- Gradle 8.13 (the CI workflow installs this version)
-- Android device or emulator running Android 8.0 / API 26 or newer
+Workflow: .github/workflows/android.yml
 
-The Android Gradle Plugin is 8.13.2 and Kotlin is 2.2.20. The project uses the Gradle plugin DSL in the root build file.
+The workflow has only a workflow_dispatch trigger. It does not run on pushes or pull requests.
 
-## Build a debug APK locally
+1. Open the repository on GitHub and select Actions.
+2. Choose Android APK.
+3. Select Run workflow, choose main, and confirm.
+4. Wait for the run to complete. Only a green Success run is a successful build.
+5. Open the run's Artifacts section and download SONORA-debug.
+6. Extract the archive and install app-debug.apk.
 
-From the repository root:
+## Local build
 
-```bash
-gradle --no-daemon assembleDebug
-```
+Requirements: JDK 17, Android SDK compatible with compileSdk 36, Gradle 8.13.
 
-Expected output:
+From the repository root run:
 
-```text
-app/build/outputs/apk/debug/app-debug.apk
-```
+    gradle --no-daemon assembleDebug
 
-For a clean rebuild:
+Output: app/build/outputs/apk/debug/app-debug.apk.
 
-```bash
-gradle --no-daemon clean assembleDebug
-```
+## Device verification checklist
 
-## Build with GitHub Actions
-
-Workflow: `.github/workflows/android.yml`
-
-Triggers:
-- Push to `main`
-- Pull request targeting `main`
-- Manual dispatch from the Actions tab
-
-The workflow checks out the repository, installs Temurin JDK 17, configures Gradle 8.13, runs `assembleDebug`, and uploads the APK as `SONORA-debug` for 14 days.
-
-### Download on Android
-
-1. Open the repository in GitHub.
-2. Tap **Actions** and select the latest successful **Android APK** run.
-3. Find the **Artifacts** section and download `SONORA-debug`.
-4. Extract the ZIP archive.
-5. Open `app-debug.apk` and follow Android's install prompts.
-
-If Android blocks the install, allow the browser or file manager to install unknown apps for this one-time operation. Only install builds you trust.
-
-## Manual device test checklist
-
-### First launch and permission
-- [ ] App launches without crashing.
-- [ ] Denying audio access leaves the app navigable and explains how to grant access.
-- [ ] Granting audio access allows a scan.
-- [ ] A device with no indexed music shows a useful empty state.
-
-### Library and search
-- [ ] Track count matches the indexed music available to the app.
-- [ ] Titles, artists, albums, and durations render without layout overflow.
-- [ ] Search matches title, artist, and album case-insensitively.
-- [ ] Empty search results are understandable.
-- [ ] Re-scanning refreshes the visible library.
-
-### Playback
-- [ ] Selecting a track starts playback.
-- [ ] Mini-player shows the selected track and toggles play/pause.
-- [ ] Next and previous controls move through the current media-item sequence.
-- [ ] Now Playing opens from the mini-player.
-- [ ] Seek slider changes playback position.
-- [ ] Back navigation returns to Home.
-- [ ] Switching tabs while audio is playing does not unexpectedly stop playback.
-
-### Visual and lifecycle
-- [ ] Small and large screen sizes remain usable.
-- [ ] Long song and artist names truncate rather than overlap controls.
-- [ ] App can be backgrounded and resumed during playback (background continuity is not guaranteed by the current architecture).
-- [ ] Rotation and process recreation do not leave the UI in a broken state.
+- [ ] First launch, audio permission grant/denial, empty library and rescan.
+- [ ] Search, album/artist grouping and favourites persistence after relaunch.
+- [ ] Create, rename, delete playlists; add selected tracks; remove tracks; play playlist.
+- [ ] Playback, seek, next/previous, shuffle and repeat.
+- [ ] Background playback after leaving the app and screen lock.
+- [ ] Notification and lock-screen transport controls.
+- [ ] Bluetooth/headset controls, audio focus and unplugging headphones.
+- [ ] Import a synced LRC file and verify timing against playback.
+- [ ] Equalizer presets and band controls on the target device.
+- [ ] Dark/light appearance, large text, accessibility and small screens.
 
 ## What CI does not prove
 
-A successful `assembleDebug` verifies compilation and APK packaging. It does not verify runtime playback, permissions on every Android version, audio focus, device-specific MediaStore behaviour, accessibility, or visual quality. Those require emulator/physical-device testing.
-
-## Troubleshooting
-
-- **No songs appear:** confirm audio files are visible to Android's media library, grant audio access, then scan again.
-- **A file is not listed:** some file types or folders may not be indexed by the device's media provider.
-- **APK cannot be installed:** remove an older incompatible debug build and retry; check Android's unknown-app installation permission.
-- **Build fails in CI:** open the failed job's logs, identify the first compiler/Gradle error, fix that cause, and rerun the workflow. Do not treat a queued or running job as a successful build.
-
-
-## Phase 3 additions requiring runtime testing
-
-- Favourites should remain after restarting the app.
-- The new service is declared for media playback and can host a MediaSession.
-- Background playback is not complete yet: the current activity still owns its playback instance until the MediaController migration is finished.
+A successful assembleDebug confirms compilation and APK packaging. It does not prove device-specific playback, notification permissions, audio focus, lock-screen controls, equalizer compatibility, lyrics synchronisation, accessibility or visual quality. Those require physical-device testing.
