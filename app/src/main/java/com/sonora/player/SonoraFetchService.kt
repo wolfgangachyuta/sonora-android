@@ -25,7 +25,8 @@ class SonoraFetchService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
+        val command = intent ?: return START_NOT_STICKY
+        when (command.action) {
             ACTION_CANCEL -> {
                 SonoraFetch.cancel()
                 downloadJob?.cancel()
@@ -34,7 +35,7 @@ class SonoraFetchService : Service() {
                 stopSelf(startId)
             }
             ACTION_DOWNLOAD -> {
-                val url = intent.getStringExtra(EXTRA_URL).orEmpty()
+                val url = command.getStringExtra(EXTRA_URL).orEmpty()
                 if (url.isBlank()) {
                     SonoraFetch.updateStatus(FetchStatus(error = "No source URL was supplied."))
                     stopSelf(startId)
