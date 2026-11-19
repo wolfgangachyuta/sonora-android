@@ -1,97 +1,35 @@
 # SONORA
 
-**Your music, your space.** SONORA is a local-first Android music player focused on a calm, deliberate listening experience. It indexes audio already available to Android's media library and plays it on-device; it is not a streaming service.
+**Your music, your space.** SONORA is a local-first Android music player with a restrained editorial interface. It indexes audio already available to Android's media library and plays it on-device.
 
-> Current development version: **0.2.0**  
-> Status: early foundation / active development. Features marked as planned are not yet implemented.
+> Development version: 0.2.0 — active development; physical-device verification remains necessary.
 
-## Product principles
+## Current implementation
 
-- **Local first:** playback is sourced from audio on the device.
-- **Quiet interface:** typography, spacing, and artwork take priority over visual clutter.
-- **Ownership:** no account or streaming catalogue is required for the core experience.
-- **Honest functionality:** documentation distinguishes working features from roadmap items.
+- Kotlin, Jetpack Compose and Material 3 interface with light/dark appearance.
+- MediaStore discovery, library browsing, albums, artists, search and favourites.
+- Media3 playback queue, mini-player, full-screen Now Playing, seek, shuffle and repeat.
+- Persistent favourites, recent-play history and play counts using SharedPreferences.
+- Persistent playlists: create, rename, delete, add selected tracks, remove individual tracks and play.
+- LRC file import and timed lyric display.
+- Native Android Equalizer controls where supported by the device.
+- Media3 MediaSessionService and UI MediaController connection for playback outside the activity.
 
-## Current functionality
+## Known limitations
 
-- Native Android application using Kotlin and Jetpack Compose.
-- Requests Android audio permission and queries the MediaStore audio catalogue.
-- Displays a device library and supports title, artist, and album search.
-- Plays local tracks with AndroidX Media3 ExoPlayer.
-- Provides a compact mini-player and a dedicated Now Playing screen with seek, play/pause, previous, and next controls.
-- Shows basic collection counts for tracks, albums, and artists.
-- Offers favourites during the current app session (not yet persisted).
-
-### Known limitations
-
-The current milestone is not a complete production music player. Favourites reset when the app process is recreated. There is no Room persistence, background playback service, media notification, lock-screen integration, editable queue, real album-art rendering, lyrics, equalizer, or listening-history analytics yet. Artwork in the player is currently a designed placeholder. Playback controls are foreground UI controls.
-
-## Phase 3 progress — background playback foundation
-
-Phase 3 has begun: Media3 Session dependency, manifest service registration, a playback-service skeleton, and persistent favourites are now in the codebase. The service is not fully wired to the UI yet; background playback is **not** claimed complete until controller integration and device tests pass.
-
-## Technology
-
-| Area | Technology |
-|---|---|
-| Language | Kotlin |
-| UI | Jetpack Compose, Material 3 |
-| Playback | AndroidX Media3 / ExoPlayer |
-| Device catalogue | Android MediaStore |
-| Build | Gradle 8.13, Android Gradle Plugin 8.13.2 |
-| Runtime | JDK 17 |
-| Automation | GitHub Actions |
-
-## Repository layout
-
-```text
-.
-├── app/
-│   ├── build.gradle.kts
-│   └── src/main/
-│       ├── AndroidManifest.xml
-│       └── java/com/sonora/player/
-│           ├── MainActivity.kt
-│           ├── NowPlayingScreen.kt
-│           └── AudioRepository.kt
-├── docs/
-│   ├── ARCHITECTURE.md
-│   ├── BUILD_AND_TEST.md
-│   ├── DESIGN_SYSTEM.md
-│   └── ROADMAP.md
-├── .github/workflows/android.yml
-├── build.gradle.kts
-├── gradle.properties
-└── settings.gradle.kts
-```
+This is not yet release-ready. Storage is SharedPreferences rather than Room; playlists do not support drag reordering; queue restoration, folder browsing, advanced artwork extraction, full listening-time analytics, automated tests and signed release packaging remain future work. Equalizer support and notification presentation vary by device. Background playback, notification/lock-screen controls, lyrics timing and equalizer operation still require physical-device validation.
 
 ## Build an installable debug APK
 
-Every push to `main`, pull request targeting `main`, or manual workflow dispatch runs the Android build.
+GitHub Actions is **manual-only**. It does not run on pushes or pull requests.
 
-1. Open the repository's **Actions** tab.
-2. Open the latest successful **Android APK** run.
-3. In **Artifacts**, download `SONORA-debug`.
-4. Extract the ZIP and install `app-debug.apk` on an Android device. Android may ask you to allow installation from the app used to open the file.
-5. Grant audio access when prompted, then scan the library.
+1. Open the repository's Actions tab.
+2. Select Android APK.
+3. Press Run workflow, choose the main branch, then confirm Run workflow.
+4. Wait for a green Success result.
+5. Open that run and download the SONORA-debug artifact.
+6. Extract the ZIP and install app-debug.apk.
 
-The artifact is a debug build intended for testing, not a signed Play Store release. See [Build and test](docs/BUILD_AND_TEST.md).
+This is a debug build, not a signed Play Store release. See docs/BUILD_AND_TEST.md.
 
-## Documentation
-
-- [Architecture](docs/ARCHITECTURE.md) — app structure, data flow, playback lifecycle, and permissions.
-- [Build and test](docs/BUILD_AND_TEST.md) — local/CI builds, installation, and verification checklist.
-- [Design system](docs/DESIGN_SYSTEM.md) — visual principles, colour tokens, typography, and components.
-- [Roadmap](docs/ROADMAP.md) — milestone plan and acceptance criteria.
-
-## Development workflow
-
-1. Make a focused change.
-2. Build with `gradle --no-daemon assembleDebug` (or use the GitHub Actions workflow).
-3. Install and test on a physical Android device.
-4. Update documentation when behaviour, permissions, or setup changes.
-5. Do not mark a feature complete until it has been built and manually verified.
-
-## License
-
-No open-source license has been declared yet. Until a license is added, the repository should be treated as all rights reserved.
+No open-source license has been declared; treat this repository as all rights reserved.
