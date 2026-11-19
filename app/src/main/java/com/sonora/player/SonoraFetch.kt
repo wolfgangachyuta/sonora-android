@@ -3,21 +3,23 @@ package com.sonora.player
 import android.content.Context
 import android.media.MediaScannerConnection
 import android.os.Environment
-import android.os.Handler
-import android.os.Looper
 import com.yausername.youtubedl_android.FFmpeg
 import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
 import java.io.File
 import java.util.UUID
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 data class FetchTrackInfo(val title: String, val durationSeconds: Long)
+data class FetchStatus(val active: Boolean = false, val progress: Int = 0, val etaSeconds: Int = 0, val message: String = "", val savedPath: String? = null, val error: String? = null)
 
 object SonoraFetch {
     @Volatile private var activeProcessId: String? = null
-    private val mainHandler = Handler(Looper.getMainLooper())
+    private val mutableStatus = MutableStateFlow(FetchStatus())
+    val status = mutableStatus.asStateFlow()
 
     suspend fun initialize(context: Context) = withContext(Dispatchers.IO) {
         YoutubeDL.getInstance().init(context.applicationContext)
@@ -53,7 +55,7 @@ object SonoraFetch {
                 addOption("-o", File(folder, "%(title)s.%(ext)s").absolutePath)
             }
             YoutubeDL.getInstance().execute(request, { progress, eta ->
-                mainHandler.post { onProgress(progress.toInt().coerceIn(0, 100), eta) }
+                onProgress(progress.toInt().coerceIn(0, 100), eta.toInt().coerceAtLeast(0))
             }, processId)
             val created = folder.listFiles()
                 ?.filter { it.isFile && it.absolutePath !in before && it.extension.equals("mp3", true) }
