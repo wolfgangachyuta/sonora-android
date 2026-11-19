@@ -346,6 +346,10 @@ private fun FetchPage(ink: Color, panel: Color, muted: Color) {
     var engineReady by remember { mutableStateOf(false) }
     var engineError by remember { mutableStateOf<String?>(null) }
     val fetchStatus by SonoraFetch.status.collectAsState()
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        SonoraFetch.updateStatus(FetchStatus(active = true, message = "Starting download…"))
+        SonoraFetchService.start(context, url.trim())
+    }
     LaunchedEffect(context) {
         runCatching { SonoraFetch.initialize(context) }.onSuccess { engineReady = true }.onFailure { engineError = it.message ?: "The download engine could not initialise." }
     }
@@ -364,7 +368,7 @@ private fun FetchPage(ink: Color, panel: Color, muted: Color) {
                     if (!url.trim().startsWith("https://") && !url.trim().startsWith("http://")) error = "Enter a valid HTTPS or HTTP link."
                     else scope.launch { analysing = true; runCatching { SonoraFetch.inspect(url.trim()) }.onSuccess { details = it }.onFailure { error = it.message ?: "Could not read this source." }; analysing = false }
                 }, enabled = engineReady && !fetchStatus.active && !analysing && url.isNotBlank(), modifier = Modifier.weight(1f)) { Text(if (analysing) "ANALYSING…" else "ANALYSE", fontSize = 10.sp) }
-                Button(onClick = { error = null; SonoraFetch.updateStatus(FetchStatus(active = true, message = "Starting download…")); SonoraFetchService.start(context, url.trim()) }, enabled = engineReady && !fetchStatus.active && !analysing && details != null, modifier = Modifier.weight(1f)) { Text("DOWNLOAD MP3", fontSize = 10.sp) }
+                Button(onClick = { error = null; if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) else { SonoraFetch.updateStatus(FetchStatus(active = true, message = "Starting download…")); SonoraFetchService.start(context, url.trim()) } }, enabled = engineReady && !fetchStatus.active && !analysing && details != null, modifier = Modifier.weight(1f)) { Text("DOWNLOAD MP3", fontSize = 10.sp) }
             }
         } }
         if (details != null) item { Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(panel).padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
