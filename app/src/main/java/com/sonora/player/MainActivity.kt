@@ -89,7 +89,7 @@ private fun SonoraApp() {
     var shuffle by remember { mutableStateOf(false) }
     var repeatMode by remember { mutableStateOf(Player.REPEAT_MODE_OFF) }
     var playlists by remember { mutableStateOf(PlaylistStore(context).load()) }
-    var lyricLines by remember { mutableStateOf(emptyList<LyricLine>())
+    var lyricLines by remember { mutableStateOf(emptyList<LyricLine>()) }
 
     val lyricLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) runCatching { context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { LyricsRepository.parseLrc(it.readText()) } }.getOrNull()?.let { lyricLines = it }
