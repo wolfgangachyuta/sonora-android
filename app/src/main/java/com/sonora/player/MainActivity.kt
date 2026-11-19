@@ -128,6 +128,7 @@ private fun SonoraApp() {
     var repeatMode by remember { mutableStateOf(Player.REPEAT_MODE_OFF) }
     var playlists by remember { mutableStateOf(PlaylistStore(context).load()) }
     var lyricLines by remember { mutableStateOf(emptyList<LyricLine>()) }
+    val fetchStatus by SonoraFetch.status.collectAsState()
 
     val lyricLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) runCatching { context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { LyricsRepository.parseLrc(it.readText()) } }.getOrNull()?.let { lyricLines = it }
@@ -187,6 +188,12 @@ private fun SonoraApp() {
         preferences.edit().putStringSet("favorite_ids", favorites).apply()
     }
     fun requestScan() { if (hasPermission) loading = true else permissionLauncher.launch(audioPermission()) }
+    LaunchedEffect(fetchStatus.savedPath) {
+        if (fetchStatus.savedPath != null) {
+            delay(900)
+            requestScan()
+        }
+    }
 
     MaterialTheme(colorScheme = if (darkMode) darkColorScheme(primary = Accent, background = Night, surface = PanelDark, onSurface = Cream, onPrimary = Night) else lightColorScheme(primary = Night, background = Cream, surface = Cream, onSurface = Night, secondary = Accent)) {
         Surface(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).imePadding(), color = paper, contentColor = ink) {
