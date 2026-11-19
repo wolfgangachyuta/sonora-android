@@ -55,12 +55,12 @@ object SonoraFetch {
                 addOption("--no-mtime")
                 addOption("-o", File(folder, "%(title)s.%(ext)s").absolutePath)
             }
-            YoutubeDL.getInstance().execute(request, { progress, eta ->
+            YoutubeDL.getInstance().execute(request, processId) { progress, eta, _ ->
                 val percent = progress.toInt().coerceIn(0, 100)
                 val remaining = eta.toInt().coerceAtLeast(0)
                 mutableStatus.value = mutableStatus.value.copy(active = true, progress = percent, etaSeconds = remaining, message = "Extracting audio…")
                 onProgress(percent, remaining)
-            }, processId)
+            }
             val created = folder.listFiles()
                 ?.filter { it.isFile && it.absolutePath !in before && it.extension.equals("mp3", true) }
                 ?.maxByOrNull { it.lastModified() }
