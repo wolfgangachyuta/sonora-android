@@ -8,6 +8,15 @@ import org.json.JSONObject
  * the actual ebook files remain in their original Android document locations.
  */
 object AthenaeumBackup {
+    suspend fun exportCsv(dao: AthenaeumDao): String {
+        fun cell(value: String) = "\"" + value.replace("\"", "\"\"").replace("\r", " ").replace("\n", " ") + "\""
+        val rows = mutableListOf("Title,Author,Publisher,Year,ISBN,Genre,Language,Status,Ownership,Rating,Progress,Digital URI")
+        dao.backupBooks().forEach { book ->
+            rows += listOf(book.title, book.author, book.publisher, book.publicationYear, book.isbn, book.genre, book.language, book.status, book.ownership, book.rating.toString(), book.progress.toString(), book.fileUri).joinToString(",") { cell(it) }
+        }
+        return rows.joinToString("\n")
+    }
+
     suspend fun export(dao: AthenaeumDao): String {
         val root = JSONObject().put("format", "athenaeum-backup").put("version", 1)
             .put("exportedAt", System.currentTimeMillis())
