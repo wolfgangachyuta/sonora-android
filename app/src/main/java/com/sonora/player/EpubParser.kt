@@ -56,7 +56,7 @@ object EpubParser {
         var language = ""
         var description = ""
         var publicationDate = ""
-        var identifier = ""
+        val identifiers = mutableListOf<String>()
         var subject = ""
         val p = parser(opf)
         while (p.eventType != XmlPullParser.END_DOCUMENT) {
@@ -68,7 +68,7 @@ object EpubParser {
                     "language" -> if (language.isBlank()) language = p.nextText().trim()
                     "description" -> if (description.isBlank()) description = p.nextText().trim()
                     "date" -> if (publicationDate.isBlank()) publicationDate = p.nextText().trim()
-                    "identifier" -> if (identifier.isBlank()) identifier = p.nextText().trim()
+                    "identifier" -> identifiers += p.nextText().trim()
                     "subject" -> if (subject.isBlank()) subject = p.nextText().trim()
                     "meta" -> if (p.getAttributeValue(null, "name") == "cover") coverId = p.getAttributeValue(null, "content").orEmpty()
                     "item" -> {
@@ -103,8 +103,8 @@ object EpubParser {
         }
         require(chapters.isNotEmpty()) { "This EPUB has no readable chapters in its spine" }
         val coverPath = coverHref.ifBlank { manifest[coverId].orEmpty() }
-        val isbnCandidate = identifier.filter { it.isDigit() || it == 'X' || it == 'x' }
-        val isbn = if (isbnCandidate.length == 10 || isbnCandidate.length == 13) isbnCandidate else ""
+        val isbn = identifiers.map { value -> value.filter { it.isDigit() || it == 'X' || it == 'x' } }
+            .firstOrNull { it.length == 10 || it.length == 13 }.orEmpty()
         return EpubDocument(title, author, chapters, files[coverPath], publisher, language, description, publicationDate.take(4), isbn, subject)
     }
 
