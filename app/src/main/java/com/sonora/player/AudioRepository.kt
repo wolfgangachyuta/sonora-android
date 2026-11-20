@@ -2,6 +2,7 @@ package com.sonora.player
 
 import android.content.ContentUris
 import android.content.Context
+import android.os.Build
 import android.provider.MediaStore
 
 data class AudioTrack(
@@ -22,19 +23,22 @@ data class AudioTrack(
 class AudioRepository(private val context: Context) {
     fun loadTracks(): List<AudioTrack> {
         val collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-        val projection = arrayOf(
+        val projection = mutableListOf(
             MediaStore.Audio.Media._ID,
             MediaStore.Audio.Media.TITLE,
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.DURATION,
             MediaStore.Audio.Media.ALBUM_ID,
-            MediaStore.Audio.Media.ALBUM_ARTIST,
             MediaStore.Audio.Media.COMPOSER,
             MediaStore.Audio.Media.YEAR,
-            MediaStore.Audio.Media.TRACK,
-            "disc_number"
-        )
+            MediaStore.Audio.Media.TRACK
+        ).apply {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                add(MediaStore.Audio.Media.ALBUM_ARTIST)
+                add("disc_number")
+            }
+        }.toTypedArray()
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
         val sortOrder = "${MediaStore.Audio.Media.TITLE} COLLATE NOCASE ASC"
         val tracks = mutableListOf<AudioTrack>()
