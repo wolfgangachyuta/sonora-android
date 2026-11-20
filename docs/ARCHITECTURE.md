@@ -7,7 +7,7 @@ This Android package contains two connected local-first experiences:
 - **SONORA** — music discovery, playback, playlists and listening tools.
 - **Athenaeum** — personal physical/digital library, ebook reader, annotations, Commonplace Book and widgets.
 
-The launcher activity hosts SONORA. Athenaeum is reachable from the SONORA top bar and from Android home-screen widgets.
+The launcher exposes separate SONORA and Athenaeum entries that share the same package and MainActivity. The Athenaeum launcher forwards into the shared activity with the Athenaeum route selected. Athenaeum is also reachable from the SONORA top bar and Android home-screen widgets.
 
 ## SONORA runtime
 
