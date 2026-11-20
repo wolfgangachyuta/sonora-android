@@ -19,7 +19,12 @@ object AthenaeumBackup {
     suspend fun writePortableZip(context: Context, dao: AthenaeumDao, output: OutputStream) {
         val root = JSONObject(export(dao))
         val preferences = context.getSharedPreferences("athenaeum_preferences", Context.MODE_PRIVATE)
-        root.put("preferences", JSONObject().apply { preferences.all.forEach { (key, value) -> put(key, value) } })
+        root.put("preferences", JSONObject().apply {
+            preferences.all.forEach { (key, value) ->
+                if (value is Set<*>) put(key, JSONArray().apply { value.filterIsInstance<String>().forEach { put(it) } })
+                else put(key, value)
+            }
+        })
         val books = root.getJSONArray("books")
         ZipOutputStream(output).use { zip ->
             for (index in 0 until books.length()) {
@@ -104,6 +109,7 @@ object AthenaeumBackup {
                     is Long -> editor.putLong(key, value)
                     is Float -> editor.putFloat(key, value)
                     is String -> editor.putString(key, value)
+                    is JSONArray -> editor.putStringSet(key, buildSet { for (i in 0 until value.length()) add(value.optString(i)) })
                     is Number -> editor.putLong(key, value.toLong())
                 }
             }
