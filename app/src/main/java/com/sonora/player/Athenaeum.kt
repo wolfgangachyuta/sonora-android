@@ -259,7 +259,7 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
             runCatching {
                 val json = AthenaeumBackup.export(dao)
                 context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(json) }
-                message = "Full Athenaeum backup exported."
+                message = "Library metadata archive exported. Ebook files remain in their original locations."
             }.onFailure { message = "Backup failed: " + it.message }
         }
     }
@@ -334,9 +334,9 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
             Box {
                 IconButton(onClick = { showBackupMenu = true }) { Icon(Icons.Rounded.MoreVert, "Backup and export options", tint = Color(0xFF454640)) }
                 DropdownMenu(expanded = showBackupMenu, onDismissRequest = { showBackupMenu = false }) {
-                    DropdownMenuItem(text = { Text("Export full JSON backup") }, onClick = { showBackupMenu = false; exportLauncher.launch("athenaeum-backup.json") })
+                    DropdownMenuItem(text = { Text("Export library JSON archive") }, onClick = { showBackupMenu = false; exportLauncher.launch("athenaeum-backup.json") })
                     DropdownMenuItem(text = { Text("Export catalogue CSV") }, onClick = { showBackupMenu = false; csvLauncher.launch("athenaeum-catalogue.csv") })
-                    DropdownMenuItem(text = { Text("Restore JSON backup") }, onClick = { showBackupMenu = false; restoreLauncher.launch(arrayOf("application/json", "text/json", "text/plain")) })
+                    DropdownMenuItem(text = { Text("Restore / merge JSON archive") }, onClick = { showBackupMenu = false; restoreLauncher.launch(arrayOf("application/json", "text/json", "text/plain")) })
                 }
             }
             IconButton(onClick = onBack) { Icon(Icons.Rounded.Close, "Close Athenaeum", tint = Color(0xFF454640)) }
