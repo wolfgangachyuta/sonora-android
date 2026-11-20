@@ -167,11 +167,22 @@ private fun SonoraApp() {
             val request = MediaStore.createWriteRequest(context.contentResolver, listOf(uri))
             metadataWriteLauncher.launch(IntentSenderRequest.Builder(request.intentSender).build())
         } else {
-            runCatching { context.contentResolver.update(uri, values, null, null) }
-                .onSuccess { loading = true }
-                .onFailure {
-                    android.widget.Toast.makeText(context, "This file does not allow metadata changes.", android.widget.Toast.LENGTH_LONG).show()
+            try {
+                context.contentResolver.update(uri, values, null, null)
+                loading = true
+                android.widget.Toast.makeText(context, "Track information updated.", android.widget.Toast.LENGTH_SHORT).show()
+            } catch (error: SecurityException) {
+                val recoverable = error as? android.app.RecoverableSecurityException
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && recoverable != null) {
+                    pendingMetadataUri = uri
+                    pendingMetadataValues = values
+                    metadataWriteLauncher.launch(
+                        IntentSenderRequest.Builder(recoverable.userAction.actionIntent.intentSender).build()
+                    )
+                } else {
+                    android.widget.Toast.makeText(context, "Android does not allow this file to be edited.", android.widget.Toast.LENGTH_LONG).show()
                 }
+            }
         }
     }
 
@@ -353,21 +364,42 @@ private fun HomePage(tracks: List<AudioTrack>, current: AudioTrack?, playing: Bo
 
 @Composable
 private fun FeatureCard(current: AudioTrack?, playing: Boolean, ink: Color, panel: Color, muted: Color, onPlay: (AudioTrack) -> Unit, onScan: () -> Unit) {
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(ink).padding(18.dp)) {
-        Text("THE CURRENT", fontSize = 9.sp, letterSpacing = 1.8.sp, color = Accent)
-        Spacer(Modifier.height(12.dp))
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(30.dp))
+            .background(Brush.linearGradient(listOf(Color(0xFF172C29), Color(0xFF344B43), Color(0xFF765B54))))
+            .padding(20.dp)
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            AlbumArtwork(current?.albumId, Modifier.size(112.dp).clip(RoundedCornerShape(18.dp)), darkFallback = true)
-            Spacer(Modifier.width(14.dp))
+            Text("SONORA SELECT", fontSize = 9.sp, letterSpacing = 2.sp, color = Color(0xFFE9B6A8), modifier = Modifier.weight(1f))
+            Text(if (playing) "NOW PLAYING" else "YOUR LIBRARY", fontSize = 8.sp, letterSpacing = 1.1.sp, color = Cream.copy(.72f))
+        }
+        Spacer(Modifier.height(18.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AlbumArtwork(current?.albumId, Modifier.size(124.dp).clip(RoundedCornerShape(22.dp)), darkFallback = true)
+            Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
-                Text(current?.title ?: "Music, waiting.", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Cream, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(current?.artist ?: "Scan your device to begin.", fontSize = 11.sp, color = Cream.copy(.65f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Spacer(Modifier.height(12.dp))
-                Button(onClick = { current?.let(onPlay) ?: onScan() }, colors = ButtonDefaults.buttonColors(containerColor = Accent, contentColor = Night), shape = RoundedCornerShape(50)) {
-                    Icon(if (playing) Icons.Rounded.PlayArrow else Icons.Rounded.PlayArrow, null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp)); Text(if (current == null) "EXPLORE" else "PLAY", fontSize = 10.sp, letterSpacing = 1.sp)
+                Text(current?.title ?: "A little room for music.", fontSize = 20.sp, lineHeight = 24.sp,
+                    fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Spacer(Modifier.height(5.dp))
+                Text(current?.artist ?: "Your collection, ready when you are.", fontSize = 11.sp,
+                    color = Color.White.copy(.72f), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Spacer(Modifier.height(15.dp))
+                Button(
+                    onClick = { current?.let(onPlay) ?: onScan() },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE9B6A8), contentColor = Color(0xFF17201D)),
+                    shape = RoundedCornerShape(50)
+                ) {
+                    Icon(Icons.Rounded.PlayArrow, null, modifier = Modifier.size(17.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(if (current == null) "DISCOVER" else if (playing) "PLAY AGAIN" else "PLAY NOW",
+                        fontSize = 9.sp, letterSpacing = 1.sp)
                 }
             }
+        }
+        Spacer(Modifier.height(16.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("A PERSONAL SOUNDTRACK.", color = Color.White.copy(.72f), fontSize = 8.sp, letterSpacing = 1.5.sp, modifier = Modifier.weight(1f))
+            Icon(Icons.Rounded.GraphicEq, null, tint = Color(0xFFE9B6A8), modifier = Modifier.size(19.dp))
         }
     }
 }
