@@ -248,6 +248,7 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
     var sortBy by remember { mutableStateOf(preferences.getString("sort_books_by", "Recently added") ?: "Recently added") }
     var showSort by remember { mutableStateOf(false) }
     var showArchive by remember { mutableStateOf(false) }
+    var showBackupMenu by remember { mutableStateOf(false) }
 
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) scope.launch {
@@ -326,9 +327,14 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
                 Text("${books.size} books in your collection", color = Color(0xFF77766F), fontSize = 12.sp)
             }
             IconButton(onClick = { showArchive = true }) { Icon(Icons.Rounded.AutoStories, "Open Commonplace Book and reading archive", tint = Color(0xFF454640)) }
-            IconButton(onClick = { exportLauncher.launch("athenaeum-backup.json") }) { Icon(Icons.Rounded.FileDownload, "Export full library backup", tint = Color(0xFF454640)) }
-            IconButton(onClick = { csvLauncher.launch("athenaeum-catalogue.csv") }) { Icon(Icons.Rounded.TableView, "Export catalogue as CSV", tint = Color(0xFF454640)) }
-            IconButton(onClick = { restoreLauncher.launch(arrayOf("application/json", "text/json", "text/plain")) }) { Icon(Icons.Rounded.FileUpload, "Restore library backup", tint = Color(0xFF454640)) }
+            Box {
+                IconButton(onClick = { showBackupMenu = true }) { Icon(Icons.Rounded.MoreVert, "Backup and export options", tint = Color(0xFF454640)) }
+                DropdownMenu(expanded = showBackupMenu, onDismissRequest = { showBackupMenu = false }) {
+                    DropdownMenuItem(text = { Text("Export full JSON backup") }, onClick = { showBackupMenu = false; exportLauncher.launch("athenaeum-backup.json") })
+                    DropdownMenuItem(text = { Text("Export catalogue CSV") }, onClick = { showBackupMenu = false; csvLauncher.launch("athenaeum-catalogue.csv") })
+                    DropdownMenuItem(text = { Text("Restore JSON backup") }, onClick = { showBackupMenu = false; restoreLauncher.launch(arrayOf("application/json", "text/json", "text/plain")) })
+                }
+            }
             IconButton(onClick = onBack) { Icon(Icons.Rounded.Close, "Close Athenaeum", tint = Color(0xFF454640)) }
             IconButton(onClick = { importLauncher.launch(arrayOf("application/epub+zip", "application/pdf", "text/plain", "text/html", "application/x-fictionbook+xml", "application/x-mobipocket-ebook", "application/rtf", "text/markdown", "application/vnd.comicbook+zip", "application/octet-stream")) }) {
                 Icon(Icons.Rounded.FileOpen, "Import books", tint = Color(0xFF30312D))
