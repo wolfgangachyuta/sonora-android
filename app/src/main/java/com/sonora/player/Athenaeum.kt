@@ -936,6 +936,7 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                     }
                 }
             }, enabled = ttsReady) { Icon(Icons.Rounded.VolumeUp, "Read this book aloud", tint = readerForeground) }
+            IconButton(onClick = { textSize = (textSize - 1f).coerceAtLeast(12f) }) { Icon(Icons.Rounded.TextDecrease, "Decrease text size", tint = readerForeground) }
             IconButton(onClick = { textSize = (textSize + 1f).coerceAtMost(30f) }) { Icon(Icons.Rounded.TextIncrease, "Increase text size", tint = readerForeground) }
         }
         if (ext == "pdf" && bitmap != null) {
