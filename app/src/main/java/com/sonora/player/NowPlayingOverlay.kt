@@ -10,6 +10,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -41,8 +43,8 @@ fun NowPlayingOverlay(
     val secondary = if (dark) Color(0xFFA8AAA5) else Color(0xFF777B75)
     val accent = if (dark) Color(0xFFE7A6A0) else Color(0xFF9D3B35)
     val artworkShape = RoundedCornerShape(30.dp)
-    var showSleepTimer by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
-    var showSpeedDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var showSleepTimer by remember { mutableStateOf(false) }
+    var showSpeedDialog by remember { mutableStateOf(false) }
 
     Surface(Modifier.fillMaxSize(), color = backdrop, contentColor = foreground) {
         Box(Modifier.fillMaxSize()) {
