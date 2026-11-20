@@ -62,7 +62,7 @@ The repository currently ships one Android package containing two connected expe
 ### Archive, portability and future services
 - [x] Room persistence and versioned migrations for books, shelves, bookmarks, annotations, commonplace entries and reading sessions.
 - [x] JSON archive export/restore and catalogue CSV export.
-- [ ] Package the underlying ebook and cover files into portable backup archives; current JSON backup preserves URI references and catalogue/archive data, not ebook binaries.
+- [x] Portable ZIP backup/restore packages accessible ebook and cover files with the catalogue/archive database; JSON-only backup remains metadata/URI based.
 - [ ] OCR batch workflow and searchable OCR text archive.
 - [ ] Optional cloud sync with conflict handling and explicit user-controlled provider setup.
 - [ ] More advanced search, quotation/tag indexing and reading timelines.
