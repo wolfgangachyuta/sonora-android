@@ -188,7 +188,7 @@ fun NowPlayingOverlay(
                 OutlinedButton(onClick = { showSleepTimer = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = foreground)) {
                     Icon(Icons.Rounded.Bedtime, null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(if (sleepMinutes == null) "SLEEP TIMER" else "SLEEP TIMER · ${sleepMinutes} MIN LEFT", fontSize = 9.sp, letterSpacing = 1.sp)
+                    Text(if (sleepMinutes == null) "SLEEP TIMER" else "SLEEP TIMER · PAUSES IN ${sleepMinutes} MIN", fontSize = 9.sp, letterSpacing = 1.sp)
                 }
                 Spacer(Modifier.height(24.dp))
             }
