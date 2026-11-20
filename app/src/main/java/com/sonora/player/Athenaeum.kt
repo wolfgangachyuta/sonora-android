@@ -780,9 +780,10 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
     var pageCount by remember { mutableIntStateOf(1) }
     var content by remember(book.id) { mutableStateOf("Loading your book…") }
     var bitmap by remember(book.id) { mutableStateOf<Bitmap?>(null) }
-    var textSize by remember { mutableFloatStateOf(18f) }
+    val readerPreferences = remember { context.getSharedPreferences("athenaeum_preferences", Context.MODE_PRIVATE) }
+    var textSize by remember { mutableFloatStateOf(readerPreferences.getFloat("reader_text_size", 18f).coerceIn(12f, 30f)) }
     val textScroll = rememberScrollState(book.lastLocation.coerceAtLeast(0))
-    var dark by remember { mutableStateOf(false) }
+    var dark by remember { mutableStateOf(readerPreferences.getBoolean("reader_dark", false)) }
     var readerWebView by remember { mutableStateOf<WebView?>(null) }
     var showBookmarks by remember { mutableStateOf(false) }
     var savedBookmarks by remember(book.id) { mutableStateOf(emptyList<AthenaeumBookmark>()) }
@@ -900,7 +901,7 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                 Text(book.title, color = readerForeground, fontFamily = FontFamily.Serif, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(book.author, color = if (dark) Color(0xFFB9C7B4) else Color(0xFF6D7968), fontSize = 10.sp)
             }
-            IconButton(onClick = { dark = !dark }) { Icon(Icons.Rounded.Contrast, "Toggle reading theme", tint = readerForeground) }
+            IconButton(onClick = { dark = !dark; readerPreferences.edit().putBoolean("reader_dark", dark).apply() }) { Icon(Icons.Rounded.Contrast, "Toggle reading theme", tint = readerForeground) }
             if (ext == "epub") IconButton(onClick = { showToc = true }) { Icon(Icons.Rounded.List, "Table of contents", tint = readerForeground) }
             if (ext == "pdf" && bitmap != null) IconButton(onClick = {
                 val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
@@ -936,8 +937,8 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                     }
                 }
             }, enabled = ttsReady) { Icon(Icons.Rounded.VolumeUp, "Read this book aloud", tint = readerForeground) }
-            IconButton(onClick = { textSize = (textSize - 1f).coerceAtLeast(12f) }) { Icon(Icons.Rounded.TextDecrease, "Decrease text size", tint = readerForeground) }
-            IconButton(onClick = { textSize = (textSize + 1f).coerceAtMost(30f) }) { Icon(Icons.Rounded.TextIncrease, "Increase text size", tint = readerForeground) }
+            IconButton(onClick = { textSize = (textSize - 1f).coerceAtLeast(12f); readerPreferences.edit().putFloat("reader_text_size", textSize).apply() }) { Icon(Icons.Rounded.TextDecrease, "Decrease text size", tint = readerForeground) }
+            IconButton(onClick = { textSize = (textSize + 1f).coerceAtMost(30f); readerPreferences.edit().putFloat("reader_text_size", textSize).apply() }) { Icon(Icons.Rounded.TextIncrease, "Increase text size", tint = readerForeground) }
         }
         if (ext == "pdf" && bitmap != null) {
             Box(Modifier.weight(1f).fillMaxWidth().padding(8.dp), contentAlignment = Alignment.Center) {
