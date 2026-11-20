@@ -330,10 +330,6 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
                         selectedContainerColor = Color(0xFF252722), selectedLabelColor = Color.White,
                         containerColor = Color.Transparent, labelColor = Color(0xFF55564F)
                     ),
-                    border = FilterChipDefaults.filterChipBorder(
-                        enabled = true, selected = filter == choice,
-                        borderColor = Color(0xFFDDDDD5), selectedBorderColor = Color(0xFF252722)
-                    )
                 )
             }
         }
@@ -360,9 +356,10 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
             }
         }
 
-        val shelfBooks by remember(selectedShelf) {
-            selectedShelf?.let { dao.booksOnShelf(it) } ?: kotlinx.coroutines.flow.flowOf(emptyList())
-        }.collectAsState(initial = emptyList())
+        val shelfBooksFlow = remember(selectedShelf) {
+            selectedShelf?.let { dao.booksOnShelf(it) } ?: kotlinx.coroutines.flow.flowOf(emptyList<AthenaeumBook>())
+        }
+        val shelfBooks by shelfBooksFlow.collectAsState(initial = emptyList())
 
         val displayBooks = if (selectedShelf != null) {
             when (sortBy) {
@@ -557,8 +554,8 @@ private fun BookEditDialog(book: AthenaeumBook, shelves: List<AthenaeumShelf>, o
         }
     }
     val chosen = remember(book.id) { mutableStateListOf<Long>() }
-    AlertDialog(onDismissRequest = onDismiss, containerColor = AthenaIvory,
-        title = { Text(if (book.id == 0L) "Add to Athenaeum" else "Edit volume", color = AthenaWalnut, fontFamily = FontFamily.Serif) },
+    AlertDialog(onDismissRequest = onDismiss, containerColor = Color.White,
+        title = { Text(if (book.id == 0L) "Add to Athenaeum" else "Edit volume", color = Color(0xFF252722), fontFamily = FontFamily.Serif) },
         text = {
             Column(Modifier.heightIn(max = 520.dp).verticalScroll(androidx.compose.foundation.rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 @Composable fun field(label: String, value: String, update: (String) -> Unit) { OutlinedTextField(value, update, Modifier.fillMaxWidth(), label = { Text(label) }, singleLine = label != "Description" && label != "Personal notes") }
@@ -566,9 +563,20 @@ private fun BookEditDialog(book: AthenaeumBook, shelves: List<AthenaeumShelf>, o
                 field("Publication year", year, { year = it }); field("ISBN", isbn, { isbn = it }); field("Genre", genre, { genre = it })
                 field("Language", language, { language = it }); field("Description", description, { description = it }); field("Personal notes", notes, { notes = it })
                 field("Personal rating (0–5)", rating, { rating = it })
-                OutlinedButton(onClick = { coverPicker.launch(arrayOf("image/*")) }) { Icon(Icons.Rounded.Image, null); Spacer(Modifier.width(6.dp)); Text(if (coverUri.isBlank()) "CHOOSE COVER IMAGE" else "CHANGE COVER IMAGE") }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    AthenaBookCover(book.copy(title = title, author = author, coverUri = coverUri), Modifier.width(76.dp).height(108.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("BOOK COVER", color = Color(0xFF77766F), fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                        OutlinedButton(onClick = { coverPicker.launch(arrayOf("image/*")) }) {
+                            Icon(Icons.Rounded.Image, null)
+                            Spacer(Modifier.width(6.dp))
+                            Text(if (coverUri.isBlank()) "Choose image" else "Change image")
+                        }
+                    }
+                }
                 Text(if (coverUri.isBlank()) "No cover selected" else "Custom cover attached", color = AthenaGreen, fontSize = 10.sp)
-                Text("READING STATUS", color = AthenaWalnut, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text("READING STATUS", color = Color(0xFF252722), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     listOf("Want to Read", "Currently Reading", "Finished", "Paused", "Abandoned").forEach { s ->
                         FilterChip(selected = status == s, onClick = { status = s }, label = { Text(s, fontSize = 9.sp) })
@@ -589,7 +597,7 @@ private fun BookEditDialog(book: AthenaeumBook, shelves: List<AthenaeumShelf>, o
         },
         confirmButton = { TextButton(onClick = {
             if (title.isNotBlank()) onSave(book.copy(title = title.trim(), author = author.trim(), publisher = publisher, publicationYear = year, isbn = isbn, genre = genre, language = language, description = description, status = status, ownership = ownership, notes = notes, coverUri = coverUri, rating = rating.toFloatOrNull()?.coerceIn(0f, 5f) ?: 0f), chosen.toList())
-        }) { Text("SAVE", color = AthenaGreen) } },
+        }) { Text("SAVE", color = Color(0xFF56745D)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("CANCEL") } }
     )
 }
