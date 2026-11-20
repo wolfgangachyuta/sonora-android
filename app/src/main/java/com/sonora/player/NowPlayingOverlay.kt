@@ -36,61 +36,25 @@ fun NowPlayingOverlay(
 ) {
     val safeDuration = duration.coerceAtLeast(1L)
     val progress = position.coerceIn(0L, safeDuration)
-    val backdrop = if (dark) Color(0xFF0D1014) else Color(0xFFF5F2EB)
-    val foreground = if (dark) Color(0xFFF5F1E8) else Color(0xFF191C1B)
-    val secondary = if (dark) Color(0xFFA8AAA5) else Color(0xFF777B75)
-    val accent = if (dark) Color(0xFFE7A6A0) else Color(0xFF9D3B35)
-    val artworkShape = RoundedCornerShape(30.dp)
+    val backdrop = paper
+    val foreground = ink
+    val secondary = muted
+    val accent = AccentDeep
     val showSleepTimer = remember { mutableStateOf(false) }
     val showSpeedDialog = remember { mutableStateOf(false) }
 
-    Surface(Modifier.fillMaxSize(), color = backdrop, contentColor = foreground) {
-        Box(Modifier.fillMaxSize()) {
-            Box(Modifier.fillMaxWidth().height(440.dp).background(
-                Brush.verticalGradient(listOf(
-                    if (dark) Color(0xFF563B3A).copy(.48f) else Color(0xFFE6C9BC).copy(.72f),
-                    backdrop
-                ))
-            ))
-            Column(
-                Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                    .padding(horizontal = 22.dp)
-            ) {
-                Row(
-                    Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 20.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onClose) {
-                        Icon(Icons.Rounded.KeyboardArrowDown, "Close player", tint = foreground, modifier = Modifier.size(29.dp))
-                    }
-                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("SONORA", fontSize = 10.sp, color = secondary, letterSpacing = 3.sp, fontWeight = FontWeight.Bold)
-                        Text("NOW PLAYING", fontSize = 8.sp, color = secondary, letterSpacing = 1.8.sp)
-                    }
-                    IconButton(onClick = onFavorite) {
-                        Icon(if (favorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                            "Favourite", tint = if (favorite) accent else foreground)
-                    }
+    Surface(Modifier.fillMaxSize(), color = paper, contentColor = ink) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 22.dp)) {
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onClose) { Icon(Icons.Rounded.KeyboardArrowDown, "Close player", tint = ink, modifier = Modifier.size(28.dp)) }
+                Text("Now playing", fontSize = 13.sp, color = muted, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                IconButton(onClick = onFavorite) {
+                    Icon(if (favorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder, "Favourite", tint = if (favorite) AccentDeep else ink)
                 }
-
-                Box(
-                    Modifier.fillMaxWidth().aspectRatio(1f).clip(artworkShape)
-                        .background(Brush.linearGradient(listOf(Color(0xFF263C36), Color(0xFF9A776C), Color(0xFFE2CBB0)))),
-                    contentAlignment = Alignment.Center
-                ) {
-                    AlbumArtwork(track.albumId, Modifier.fillMaxSize())
-                    Box(Modifier.fillMaxSize().background(
-                        Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .40f)))
-                    ))
-                    Column(
-                        Modifier.align(Alignment.BottomStart).padding(20.dp)
-                    ) {
-                        Text("THE CURRENT RECORD", fontSize = 8.sp, color = Color.White.copy(.82f), letterSpacing = 2.sp)
-                        Text(track.album.ifBlank { "SONORA SESSION" }, fontSize = 19.sp,
-                            color = Color.White, fontWeight = FontWeight.SemiBold,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                }
+            }
+            Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(24.dp)).background(panel)) {
+                AlbumArtwork(track.albumId, Modifier.fillMaxSize())
+            }
 
                 Spacer(Modifier.height(24.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -166,7 +130,7 @@ fun NowPlayingOverlay(
                     ) {
                         Icon(Icons.Rounded.MusicNote, null, modifier = Modifier.size(17.dp))
                         Spacer(Modifier.width(7.dp))
-                        Text("LYRICS", fontSize = 9.sp, letterSpacing = 1.sp)
+                        Text("Lyrics")
                     }
                     FilledTonalButton(
                         onClick = onEqualizer, modifier = Modifier.weight(1f),
@@ -175,7 +139,7 @@ fun NowPlayingOverlay(
                     ) {
                         Icon(Icons.Rounded.Equalizer, null, modifier = Modifier.size(17.dp))
                         Spacer(Modifier.width(7.dp))
-                        Text("EQUALIZER", fontSize = 9.sp, letterSpacing = 1.sp)
+                        Text("Equalizer")
                     }
                 }
                 Spacer(Modifier.height(10.dp))
@@ -186,18 +150,18 @@ fun NowPlayingOverlay(
                 ) {
                     Icon(Icons.Rounded.Edit, null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("EDIT TRACK INFORMATION", fontSize = 9.sp, letterSpacing = 1.sp)
+                    Text("Edit track information")
                 }
                 OutlinedButton(onClick = { showSpeedDialog.value = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = foreground)) {
                     Icon(Icons.Rounded.Speed, null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("PLAYBACK SPEED · ${playbackSpeed}×", fontSize = 9.sp, letterSpacing = 1.sp)
+                    Text("Playback speed · ${playbackSpeed}×")
                 }
                 Spacer(Modifier.height(10.dp))
                 OutlinedButton(onClick = { showSleepTimer.value = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = foreground)) {
                     Icon(Icons.Rounded.Bedtime, null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(if (sleepMinutes == null) "SLEEP TIMER" else "SLEEP TIMER · PAUSES IN ${sleepMinutes} MIN", fontSize = 9.sp, letterSpacing = 1.sp)
+                    Text(if (sleepMinutes == null) "Sleep timer" else "Sleep timer · pauses in ${sleepMinutes} min")
                 }
                 Spacer(Modifier.height(24.dp))
             }
@@ -216,7 +180,7 @@ fun NowPlayingOverlay(
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { showSpeedDialog.value = false }) { Text("CLOSE") } }
+            confirmButton = { TextButton(onClick = { showSpeedDialog.value = false }) { Text("Close") } }
         )
     }
     if (showSleepTimer.value) {
