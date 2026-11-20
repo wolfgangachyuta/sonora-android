@@ -477,7 +477,16 @@ private fun FeatureCard(current: AudioTrack?, playing: Boolean, ink: Color, pane
 
 @Composable
 private fun LibraryPage(tracks: List<AudioTrack>, loading: Boolean, permission: Boolean, query: String, onQuery: (String) -> Unit, onFilter: (String) -> Unit, filter: String, onScan: () -> Unit, onPlay: (AudioTrack) -> Unit, current: AudioTrack?, favorites: Set<String>, onFavorite: (AudioTrack) -> Unit, ink: Color, paper: Color, panel: Color, muted: Color) {
-    val filtered = tracks.filter { (filter != "Favourites" || it.id.toString() in favorites) && (query.isBlank() || it.title.contains(query, true) || it.artist.contains(query, true) || it.album.contains(query, true)) }
+    var sortBy by remember { mutableStateOf("Recently added") }
+    var showSort by remember { mutableStateOf(false) }
+    val matching = tracks.filter { (filter != "Favourites" || it.id.toString() in favorites) && (query.isBlank() || it.title.contains(query, true) || it.artist.contains(query, true) || it.album.contains(query, true)) }
+    val filtered = when (sortBy) {
+        "Title A–Z" -> matching.sortedBy { it.title.lowercase() }
+        "Artist A–Z" -> matching.sortedBy { it.artist.lowercase() }
+        "Album A–Z" -> matching.sortedBy { it.album.lowercase() }
+        "Longest first" -> matching.sortedByDescending { it.durationMs }
+        else -> matching
+    }
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         Text("THE COLLECTION", fontSize = 9.sp, letterSpacing = 1.8.sp, color = muted)
         Text("Your library", fontSize = 35.sp, fontWeight = FontWeight.Medium, letterSpacing = (-1.5).sp, color = ink)
@@ -488,6 +497,14 @@ private fun LibraryPage(tracks: List<AudioTrack>, loading: Boolean, permission: 
             listOf("All songs", "Favourites").forEach { label ->
                 FilterPill(label, filter == label, ink, panel, { onFilter(label) })
                 Spacer(Modifier.width(8.dp))
+            }
+            Box {
+                TextButton(onClick = { showSort = true }) { Icon(Icons.Rounded.Sort, null, modifier = Modifier.size(15.dp)); Spacer(Modifier.width(4.dp)); Text("SORT", fontSize = 9.sp, color = ink) }
+                DropdownMenu(expanded = showSort, onDismissRequest = { showSort = false }) {
+                    listOf("Recently added", "Title A–Z", "Artist A–Z", "Album A–Z", "Longest first").forEach { option ->
+                        DropdownMenuItem(text = { Text(option) }, onClick = { sortBy = option; showSort = false })
+                    }
+                }
             }
             Spacer(Modifier.weight(1f))
             TextButton(onClick = onScan) { Text(if (loading) "SCANNING" else "REFRESH", fontSize = 9.sp, color = ink) }
