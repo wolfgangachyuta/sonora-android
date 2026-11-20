@@ -988,17 +988,13 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                     }
                 }
                 setBackgroundColor(if (dark) android.graphics.Color.rgb(23, 25, 22) else android.graphics.Color.rgb(247, 246, 241))
-                val safeHtml = themedContent.replace(Regex("(?is)<script\\b[^>]*>.*?</script>"), "")
-                    .replace(Regex("(?i)\\s+on[a-z]+\\s*=\\s*(['\"]).*?\\1"), "")
-                    .replace(Regex("(?i)href\\s*=\\s*(['\"])javascript:.*?\\1"), "")
+                val safeHtml = sanitizeReaderHtml(themedContent)
                 tag = safeHtml
                 readerWebView = this
                 loadDataWithBaseURL(null, safeHtml, "text/html", "UTF-8", null)
             } }, update = { web ->
                 web.setBackgroundColor(if (dark) android.graphics.Color.rgb(23, 25, 22) else android.graphics.Color.rgb(247, 246, 241))
-                val safeHtml = themedContent.replace(Regex("(?is)<script\\b[^>]*>.*?</script>"), "")
-                    .replace(Regex("(?i)\\s+on[a-z]+\\s*=\\s*(['\"]).*?\\1"), "")
-                    .replace(Regex("(?i)href\\s*=\\s*(['\"])javascript:.*?\\1"), "")
+                val safeHtml = sanitizeReaderHtml(themedContent)
                 if (web.tag != safeHtml) { web.tag = safeHtml; web.loadDataWithBaseURL(null, safeHtml, "text/html", "UTF-8", null) }
                 if (web.scrollY == 0 && book.lastLocation > 0) web.post { web.scrollTo(0, book.lastLocation) }
             }, modifier = Modifier.weight(1f).fillMaxWidth())
@@ -1106,3 +1102,10 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
             confirmButton = { TextButton(onClick = { showBookmarks = false }) { Text("CLOSE") } })
     }
 }
+
+private fun sanitizeReaderHtml(html: String): String = html
+    .replace(Regex("""(?is)<script\\b[^>]*>.*?</script>"""), "")
+    .replace(Regex("""(?is)<iframe\\b[^>]*>.*?</iframe>"""), "")
+    .replace(Regex("""(?i)\\s+on[a-z]+\\s*=\\s*("[^"]*"|'[^']*'|[^\\s>]+)"""), "")
+    .replace(Regex("""(?i)(href|src)\\s*=\\s*(['"])\\s*javascript:.*?\\2"""), "")
+    .replace(Regex("""(?i)(href|src)\\s*=\\s*javascript:[^\\s>]+"""), "")
