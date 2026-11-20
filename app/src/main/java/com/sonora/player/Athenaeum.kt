@@ -258,6 +258,15 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
             }.onFailure { message = "Backup failed: " + it.message }
         }
     }
+    val csvLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        if (uri != null) scope.launch {
+            runCatching {
+                val csv = AthenaeumBackup.exportCsv(dao)
+                context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(csv) }
+                message = "Catalogue CSV exported."
+            }.onFailure { message = "CSV export failed: " + it.message }
+        }
+    }
     val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) scope.launch {
             runCatching {
@@ -318,6 +327,7 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
             }
             IconButton(onClick = { showArchive = true }) { Icon(Icons.Rounded.AutoStories, "Open Commonplace Book and reading archive", tint = Color(0xFF454640)) }
             IconButton(onClick = { exportLauncher.launch("athenaeum-backup.json") }) { Icon(Icons.Rounded.FileDownload, "Export full library backup", tint = Color(0xFF454640)) }
+            IconButton(onClick = { csvLauncher.launch("athenaeum-catalogue.csv") }) { Icon(Icons.Rounded.TableView, "Export catalogue as CSV", tint = Color(0xFF454640)) }
             IconButton(onClick = { restoreLauncher.launch(arrayOf("application/json", "text/json", "text/plain")) }) { Icon(Icons.Rounded.FileUpload, "Restore library backup", tint = Color(0xFF454640)) }
             IconButton(onClick = onBack) { Icon(Icons.Rounded.Close, "Close Athenaeum", tint = Color(0xFF454640)) }
             IconButton(onClick = { importLauncher.launch(arrayOf("application/epub+zip", "application/pdf", "text/plain", "text/html", "application/x-fictionbook+xml", "application/x-mobipocket-ebook", "application/rtf", "text/markdown", "application/vnd.comicbook+zip", "application/octet-stream")) }) {
