@@ -18,6 +18,8 @@ import java.util.zip.ZipOutputStream
 object AthenaeumBackup {
     suspend fun writePortableZip(context: Context, dao: AthenaeumDao, output: OutputStream) {
         val root = JSONObject(export(dao))
+        val preferences = context.getSharedPreferences("athenaeum_preferences", Context.MODE_PRIVATE)
+        root.put("preferences", JSONObject().apply { preferences.all.forEach { (key, value) -> put(key, value) } })
         val books = root.getJSONArray("books")
         ZipOutputStream(output).use { zip ->
             for (index in 0 until books.length()) {
@@ -93,6 +95,20 @@ object AthenaeumBackup {
             }
         }
         val root = JSONObject(metadata ?: error("The ZIP does not contain athenaeum.json"))
+        root.optJSONObject("preferences")?.let { saved ->
+            val editor = context.getSharedPreferences("athenaeum_preferences", Context.MODE_PRIVATE).edit().clear()
+            saved.keys().forEach { key ->
+                when (val value = saved.opt(key)) {
+                    is Boolean -> editor.putBoolean(key, value)
+                    is Int -> editor.putInt(key, value)
+                    is Long -> editor.putLong(key, value)
+                    is Float -> editor.putFloat(key, value)
+                    is String -> editor.putString(key, value)
+                    is Number -> editor.putLong(key, value.toLong())
+                }
+            }
+            editor.apply()
+        }
         val books = root.optJSONArray("books") ?: JSONArray()
         for (index in 0 until books.length()) {
             val book = books.getJSONObject(index)
