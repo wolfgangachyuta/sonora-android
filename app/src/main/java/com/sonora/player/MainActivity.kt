@@ -518,9 +518,7 @@ private fun FetchPage(ink: Color, panel: Color, muted: Color) {
     }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(15.dp)) {
         item {
-            Text("OFFLINE MUSIC", fontSize = 9.sp, color = muted, letterSpacing = 1.8.sp)
-            Text("SONORA Fetch", fontSize = 36.sp, fontWeight = FontWeight.Medium, letterSpacing = (-1.8).sp, color = ink)
-            Text("Bring authorised audio into your local library.", fontSize = 11.sp, color = muted)
+            PageHeader("Fetch", "Bring authorised audio into your local library.", ink, muted)
         }
         item { Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(panel).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("SOURCE LINK", fontSize = 9.sp, letterSpacing = 1.5.sp, color = muted)
