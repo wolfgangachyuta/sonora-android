@@ -6,7 +6,7 @@ import java.io.ByteArrayInputStream
 import java.util.zip.ZipInputStream
 
 data class EpubChapter(val href: String, val title: String, val html: String)
-data class EpubDocument(val title: String, val author: String, val chapters: List<EpubChapter>)
+data class EpubDocument(val title: String, val author: String, val chapters: List<EpubChapter>, val coverImage: ByteArray? = null)
 
 /** EPUB 2/3 container, OPF manifest/spine and NCX/EPUB3 navigation reader. */
 object EpubParser {
@@ -37,6 +37,8 @@ object EpubParser {
         val spine = mutableListOf<String>()
         var navHref = ""
         var ncxHref = ""
+        var coverId = ""
+        var coverHref = ""
         var title = ""
         var author = ""
         val p = parser(opf)
@@ -45,6 +47,7 @@ object EpubParser {
                 when (p.name) {
                     "title" -> if (title.isBlank()) title = p.nextText().trim()
                     "creator" -> if (author.isBlank()) author = p.nextText().trim()
+                    "meta" -> if (p.getAttributeValue(null, "name") == "cover") coverId = p.getAttributeValue(null, "content").orEmpty()
                     "item" -> {
                         val id = p.getAttributeValue(null, "id").orEmpty()
                         val href = p.getAttributeValue(null, "href").orEmpty()
@@ -54,6 +57,7 @@ object EpubParser {
                             manifest[id] = resolve(base, href.substringBefore('#'))
                             media[id] = type
                             if (properties.split(' ').contains("nav")) navHref = resolve(base, href.substringBefore('#'))
+                            if (properties.split(' ').contains("cover-image")) coverHref = resolve(base, href.substringBefore('#'))
                             if (type == "application/x-dtbncx+xml") ncxHref = resolve(base, href.substringBefore('#'))
                         }
                     }
@@ -75,7 +79,8 @@ object EpubParser {
             EpubChapter(href, navTitles[href] ?: href.substringAfterLast('/').substringBeforeLast('.'), style(raw, href, files))
         }
         require(chapters.isNotEmpty()) { "This EPUB has no readable chapters in its spine" }
-        return EpubDocument(title, author, chapters)
+        val coverPath = coverHref.ifBlank { manifest[coverId].orEmpty() }
+        return EpubDocument(title, author, chapters, files[coverPath])
     }
 
     private fun parser(bytes: ByteArray): XmlPullParser = XmlPullParserFactory.newInstance().newPullParser().apply {
