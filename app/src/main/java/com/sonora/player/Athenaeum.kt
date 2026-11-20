@@ -160,6 +160,8 @@ interface AthenaeumDao {
     suspend fun addAnnotation(annotation: AthenaeumAnnotation)
     @Query("SELECT * FROM athenaeum_annotations ORDER BY createdAt DESC")
     fun observeAnnotations(): Flow<List<AthenaeumAnnotation>>
+    @Query("SELECT * FROM athenaeum_annotations WHERE bookId=:bookId ORDER BY createdAt")
+    suspend fun annotationsForBook(bookId: Long): List<AthenaeumAnnotation>
     @Delete
     suspend fun deleteAnnotation(annotation: AthenaeumAnnotation)
 
@@ -1110,6 +1112,7 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
             confirmButton = { TextButton(onClick = {
                 if (annotationQuote.isNotBlank()) scope.launch {
                     dao.addAnnotation(AthenaeumAnnotation(bookId = book.id, location = if (ext == "pdf") page else if (ext == "txt") textScroll.value else if (ext == "epub") epubChapterIndex else readerWebView?.scrollY ?: 0, quote = annotationQuote.trim(), note = annotationNote.trim()))
+                    if (ext != "pdf" && ext != "txt") readerWebView?.let { highlightReaderQuote(it, annotationQuote.trim()) }
                 }
                 showAnnotationEditor = false
             }) { Text("SAVE") } },
@@ -1144,3 +1147,10 @@ private fun sanitizeReaderHtml(html: String): String = html
     .replace(Regex("""(?i)\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)"""), "")
     .replace(Regex("""(?i)(href|src)\s*=\s*(['"])\s*javascript:.*?\2"""), "")
     .replace(Regex("""(?i)(href|src)\s*=\s*javascript:[^\s>]+"""), "")
+
+private fun highlightReaderQuote(webView: WebView, quote: String) {
+    if (quote.isBlank()) return
+    val safeQuote = JSONObject.quote(quote)
+    val script = """(function(q){var w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);while(w.nextNode()){var n=w.currentNode;var i=n.nodeValue.indexOf(q);if(i>=0){var r=document.createRange();r.setStart(n,i);r.setEnd(n,i+q.length);var m=document.createElement('mark');m.style.backgroundColor='#F2D98A';m.style.color='inherit';try{r.surroundContents(m);return true;}catch(e){return false;}}}return false;})($safeQuote);"""
+    webView.evaluateJavascript(script, null)
+}
