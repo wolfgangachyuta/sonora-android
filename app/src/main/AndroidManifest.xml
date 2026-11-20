@@ -41,6 +41,7 @@
             android:name=".AthenaeumLauncherActivity"
             android:exported="true"
             android:label="Athenaeum"
+            android:icon="@drawable/ic_athenaeum"
             android:theme="@android:style/Theme.Material.Light.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
