@@ -139,8 +139,8 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
     var recentIds by remember { mutableStateOf(preferences.getString("recent_ids", "").orEmpty().split(",").filter { it.isNotBlank() }) }
     var playCounts by remember { mutableStateOf(preferences.getString("play_counts", "").orEmpty().split(",").filter { it.contains(":") }.associate { it.substringBefore(":") to (it.substringAfter(":").toIntOrNull() ?: 0) }) }
     var playEvents by remember { mutableStateOf(emptyList<SonoraPlayEvent>()) }
-    var shuffle by remember { mutableStateOf(false) }
-    var repeatMode by remember { mutableStateOf(Player.REPEAT_MODE_OFF) }
+    var shuffle by remember { mutableStateOf(preferences.getBoolean("shuffle", false)) }
+    var repeatMode by remember { mutableStateOf(preferences.getInt("repeat_mode", Player.REPEAT_MODE_OFF)) }
     var playbackSpeed by remember { mutableFloatStateOf(preferences.getFloat("playback_speed", 1f).coerceIn(0.5f, 2f)) }
     var sleepTimerMinutes by remember { mutableStateOf<Int?>(null) }
     var playlists by remember { mutableStateOf(PlaylistStore(context).load()) }
@@ -311,6 +311,12 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
         lyricLines = if (active == null || active.filePath.isBlank()) emptyList() else withContext(Dispatchers.IO) {
             LyricsRepository.siblingLrc(active.filePath)?.let { file -> runCatching { LyricsRepository.parseLrc(file.readText()) }.getOrNull() }.orEmpty()
         }
+    }
+
+    LaunchedEffect(shuffle, repeatMode, player) {
+        player.shuffleModeEnabled = shuffle
+        player.repeatMode = repeatMode
+        preferences.edit().putBoolean("shuffle", shuffle).putInt("repeat_mode", repeatMode).apply()
     }
 
     LaunchedEffect(playbackSpeed, player) {
@@ -586,7 +592,7 @@ private fun LibraryPage(tracks: List<AudioTrack>, loading: Boolean, permission: 
         "Artist A–Z" -> matching.sortedBy { it.artist.lowercase() }
         "Album A–Z" -> matching.sortedBy { it.album.lowercase() }
         "Longest first" -> matching.sortedByDescending { it.durationMs }
-        else -> matching
+        else -> matching.sortedByDescending { it.dateAddedSeconds }
     }
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         PageHeader("Your library", "${tracks.size} tracks on this device", ink, muted)
