@@ -1,78 +1,61 @@
-# SONORA architecture
+# Application architecture
 
-## Scope
+## Product scope
 
-SONORA is a native Android application. The current implementation is intentionally small: one activity hosts Compose screens, an audio repository reads the Android media catalogue, and Media3 ExoPlayer handles playback.
+This Android package contains two connected local-first experiences:
 
-This document describes the code that exists today and identifies planned boundaries. It does not imply that planned modules have already been implemented.
+- **SONORA** — music discovery, playback, playlists and listening tools.
+- **Athenaeum** — personal physical/digital library, ebook reader, annotations, Commonplace Book and widgets.
 
-## Runtime components
+The launcher activity hosts SONORA. Athenaeum is reachable from the SONORA top bar and from Android home-screen widgets.
+
+## SONORA runtime
 
 ### MainActivity / SonoraApp
 
-- Creates the ExoPlayer instance for the lifetime of the Compose app.
-- Owns screen selection, loaded tracks, current track, playback state, search query, and session favourites.
-- Requests the platform audio-read permission.
-- Invokes AudioRepository on an IO dispatcher when a scan is requested.
-- Creates the player media-item list from the scanned tracks.
-- Releases ExoPlayer when the composable owner is disposed.
+- Owns Compose navigation and presentation state.
+- Connects to SonoraPlaybackService through Media3 MediaController; the service owns the ExoPlayer and MediaSession.
+- Scans MediaStore on Dispatchers.IO through AudioRepository.
+- Maintains screen state for the current track, queue, favourites, playlists, lyrics, filters, playback preferences and statistics.
+- Uses Room as durable storage for favourites, playlists and playlist tracks, play history, and the queue snapshot. Existing SharedPreferences data is migrated once into Room.
+- Keeps lightweight UI preferences such as theme, accent, speed, shuffle and repeat in SharedPreferences.
 
-### AudioRepository
+### Playback service
 
-AudioRepository queries `MediaStore.Audio.Media.EXTERNAL_CONTENT_URI` for music entries. It maps the media ID, title, artist, album, duration, album ID, and content URI into AudioTrack records.
+SonoraPlaybackService owns ExoPlayer and MediaSession. The player is configured for media audio focus, local wake mode and automatic pause when audio becomes noisy (for example, when headphones are disconnected). MediaSessionService supplies the system media notification and lock-screen transport surface.
 
-The repository currently performs a complete catalogue query when a scan is requested. A future repository layer should support paging, sorting, filtering, and database-backed user data.
+Queue items carry title, artist, album and MediaStore album-art URI metadata. The queue snapshot stores ordered track IDs, current index and playback position. The UI can reorder and remove queued items without tying playback to a visible screen.
 
-### Compose UI
+### Library data
 
-- HomeScreen: welcome, collection counts, recently available tracks, and scan entry point.
-- LibraryScreen: searchable track list, scan action, and session favourites.
-- SearchScreen: focused search across title, artist, and album.
-- ProfileScreen: current library/session counts.
-- MiniPlayer: compact playback controls and entry to Now Playing.
-- NowPlayingScreen: artwork treatment, track metadata, seek slider, and transport controls.
+AudioRepository queries MediaStore for track identifiers, title, artist, album, duration, album ID, composer, year, track/disc numbers and local file path. Folder browsing groups tracks by parent directory. AlbumArtwork resolves MediaStore album art; the current track's artwork can determine the accent palette.
 
-The UI is currently hosted in MainActivity.kt plus the dedicated NowPlayingScreen.kt file. As the app grows, screen state and playback orchestration should move out of the activity into view models.
+### Additional SONORA components
 
-## Data and playback flow
+- LyricsRepository parses local LRC files and discovers an adjacent LRC file for a track.
+- EqualizerController wraps the Android system equalizer for the active playback session.
+- AudioTagWriter writes supported embedded audio metadata.
+- PlaylistStore remains as a compatibility/migration layer while Room is the durable store.
+- SonoraFetch and SonoraFetchService provide the optional authorised-media download workflow.
 
-1. The user requests a library scan.
-2. The app checks or requests `READ_MEDIA_AUDIO` on Android 13+ or `READ_EXTERNAL_STORAGE` on older supported Android versions.
-3. AudioRepository queries MediaStore on Dispatchers.IO.
-4. AudioTrack objects populate the Compose library state.
-5. Selecting a track builds Media3 MediaItems from the track content URIs.
-6. ExoPlayer prepares and plays the selected item and the remaining library items form the playback sequence.
-7. Player.Listener updates the current track and play/pause state; the Now Playing screen samples the current position for its progress display.
+## Athenaeum data and UI
 
-## Permissions and privacy
+AthenaeumDatabase is a separate Room database (athenaeum.db) with versioned migrations. It stores books, shelves, book/shelf assignments, bookmarks, annotations, Commonplace Book entries and reading sessions.
 
-The manifest declares audio-read permissions only. SONORA's current core feature does not require network access or a user account. The permission is used to discover and play audio exposed through Android's media provider. The app should explain the permission in plain language and should remain usable without granting it, with a clear empty/permission state.
+AthenaeumBackup exports/restores the structured catalogue and archive records as versioned JSON and exports catalogue CSV. Digital file and cover URIs are preserved as references; the ebook binaries are not copied into the JSON backup.
 
-Any future feature that introduces network access, analytics, or additional sensitive permissions must document why it is needed and minimise collection.
+The reader currently includes:
+- PDF rendering through Android PdfRenderer.
+- EPUB 2/3 ZIP/OPF manifest and spine parsing, NCX/EPUB3 navigation and inlining of local images/stylesheets.
+- TXT, HTML, FB2, legacy PalmDOC MOBI 6, RTF, Markdown and CBZ reading paths.
+- Persisted reading location, bookmarks, annotations, OCR for PDF pages and Android text-to-speech.
 
-## Phase 3 groundwork (in progress)
+Three AppWidgetProvider implementations expose Continue Reading, library overview and random-book widgets. Widget taps deep-link to Athenaeum inside MainActivity.
 
-- Added the Media3 Session dependency.
-- Declared a foreground media-playback service in the Android manifest with the media-playback service permissions.
-- Added SonoraPlaybackService to host ExoPlayer and a MediaSession.
-- Persisted favourite track IDs using SharedPreferences so they survive process restarts.
+## Permissions, privacy and network
 
-**Important:** The new service is groundwork only. The current screen still creates and controls its own ExoPlayer; MediaController connection and transferring playback into the service are the remaining integration steps. Background playback is not yet considered complete.
+SONORA requests Android media-read permission to index local audio. Athenaeum uses the Storage Access Framework and persistable document URI permissions for imported books. PDF OCR uses bundled on-device ML Kit text recognition; text-to-speech uses Android's installed TTS engine. ISBN lookup makes an explicit request to Google Books. SONORA Fetch uses network access for its user-initiated download workflow. The core libraries and playback remain local-first; there is no account or cloud sync.
 
-## Planned architecture evolution
+## Verification status
 
-The next architectural step is to separate responsibilities:
-
-- **PlaybackController / MediaSessionService:** own playback independently of a visible screen and expose a MediaSession for notification, lock-screen, headset, and system controls.
-- **Room database:** persist playlists, favourites, play history, and user settings.
-- **Repository interfaces:** isolate MediaStore, Room, and playback data sources.
-- **ViewModels:** expose immutable screen state and user actions to Compose.
-- **Artwork and lyrics providers:** resolve local album artwork and local LRC files without coupling those concerns to the UI.
-
-## Current technical caveats
-
-- Player lifetime is currently tied to the Compose app owner, not a foreground service.
-- Favourites are held in Compose memory and are not durable.
-- Position is sampled while a track is selected; robust lifecycle-aware progress and seek handling still need device testing.
-- MediaStore metadata and availability vary by device and file provider.
-- Placeholder artwork is used instead of actual embedded or MediaStore artwork.
+Source implementation does not prove runtime correctness. Physical-device checks remain required for background playback, notifications, lock-screen controls, audio focus, widgets, reader format compatibility, OCR, TTS, accessibility, large fonts and Android-version differences. GitHub Actions is manual-only and must not be triggered by pushes or pull requests.
