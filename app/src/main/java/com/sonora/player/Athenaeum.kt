@@ -769,7 +769,7 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
     var epubDocument by remember(book.id) { mutableStateOf<EpubDocument?>(null) }
     var comicPages by remember(book.id) { mutableStateOf(emptyList<Bitmap>()) }
     var comicPage by remember(book.id) { mutableIntStateOf(book.lastLocation.coerceAtLeast(0)) }
-    var epubChapterIndex by remember(book.id) { mutableIntStateOf(book.progress.coerceIn(0, 100)) }
+    var epubChapterIndex by remember(book.id) { mutableIntStateOf(book.lastLocation.coerceAtLeast(0)) }
     var showToc by remember { mutableStateOf(false) }
     var ocrText by remember { mutableStateOf("") }
     var ocrError by remember { mutableStateOf("") }
@@ -795,7 +795,7 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
     DisposableEffect(readerWebView) {
         onDispose {
             readerWebView?.let { web ->
-                scope.launch { dao.updateProgress(book.id, book.progress, web.scrollY) }
+                scope.launch { dao.updateProgress(book.id, book.progress, if (ext == "epub") epubChapterIndex else web.scrollY) }
             }
         }
     }
@@ -834,7 +834,7 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
             }
             parsed.onSuccess { document ->
                 epubDocument = document
-                epubChapterIndex = ((book.progress.coerceIn(0, 100) * document.chapters.size) / 100).coerceIn(0, document.chapters.lastIndex)
+                epubChapterIndex = book.lastLocation.coerceIn(0, document.chapters.lastIndex)
                 content = document.chapters[epubChapterIndex].html
             }.onFailure { content = "Unable to open this EPUB: " + it.message }
         } else {
@@ -857,7 +857,7 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                 }.getOrElse { "Unable to read this file: ${it.message}" }
             }
         }
-        dao.updateProgress(book.id, book.progress, page, System.currentTimeMillis())
+        dao.updateProgress(book.id, book.progress, if (ext == "epub") epubChapterIndex else page, System.currentTimeMillis())
     }
 
     LaunchedEffect(textScroll.value, textScroll.maxValue) {
@@ -889,8 +889,8 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
             IconButton(onClick = { annotationQuote = ""; annotationNote = ""; showAnnotationEditor = true }) { Icon(Icons.Rounded.Highlight, "Add highlight or annotation", tint = readerForeground) }
             IconButton(onClick = {
                 scope.launch {
-                    val location = if (ext == "pdf") page else if (ext == "txt") textScroll.value else readerWebView?.scrollY ?: 0
-                    dao.addBookmark(AthenaeumBookmark(bookId = book.id, location = location, label = if (ext == "pdf") "Page ${page + 1}" else "Position $location"))
+                    val location = if (ext == "pdf") page else if (ext == "txt") textScroll.value else if (ext == "epub") epubChapterIndex else readerWebView?.scrollY ?: 0
+                    dao.addBookmark(AthenaeumBookmark(bookId = book.id, location = location, label = if (ext == "pdf") "Page ${page + 1}" else if (ext == "epub") "Chapter ${epubChapterIndex + 1}" else "Position $location"))
                     savedBookmarks = dao.bookmarks(book.id)
                 }
             }) { Icon(Icons.Rounded.BookmarkAdd, "Save bookmark", tint = readerForeground) }
@@ -964,7 +964,7 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                     TextButton(onClick = {
                         epubChapterIndex = (epubChapterIndex - 1).coerceAtLeast(0)
                         content = epubDocument!!.chapters[epubChapterIndex].html
-                        scope.launch { dao.updateProgress(book.id, (epubChapterIndex * 100 / epubDocument!!.chapters.size.coerceAtLeast(1)), readerWebView?.scrollY ?: 0) }
+                        scope.launch { dao.updateProgress(book.id, (epubChapterIndex * 100 / epubDocument!!.chapters.size.coerceAtLeast(1)), epubChapterIndex) }
                     }, enabled = epubChapterIndex > 0) { Text("Previous chapter", color = readerForeground) }
                     Spacer(Modifier.weight(1f))
                     Text("${epubChapterIndex + 1} / ${epubDocument!!.chapters.size}", color = readerForeground, fontSize = 10.sp)
@@ -972,7 +972,7 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                     TextButton(onClick = {
                         epubChapterIndex = (epubChapterIndex + 1).coerceAtMost(epubDocument!!.chapters.lastIndex)
                         content = epubDocument!!.chapters[epubChapterIndex].html
-                        scope.launch { dao.updateProgress(book.id, (epubChapterIndex * 100 / epubDocument!!.chapters.size.coerceAtLeast(1)), 0) }
+                        scope.launch { dao.updateProgress(book.id, (epubChapterIndex * 100 / epubDocument!!.chapters.size.coerceAtLeast(1)), epubChapterIndex) }
                     }, enabled = epubChapterIndex < epubDocument!!.chapters.lastIndex) { Text("Next chapter", color = readerForeground) }
                 }
             } else Text("HTML reader · adjustable theme and saved position", color = readerForeground, fontSize = 10.sp, modifier = Modifier.padding(12.dp))
@@ -1012,7 +1012,7 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                             epubChapterIndex = index
                             content = chapter.html
                             showToc = false
-                            scope.launch { dao.updateProgress(book.id, (index * 100 / epubDocument!!.chapters.size.coerceAtLeast(1)), 0) }
+                            scope.launch { dao.updateProgress(book.id, (index * 100 / epubDocument!!.chapters.size.coerceAtLeast(1)), index) }
                         }, modifier = Modifier.fillMaxWidth()) {
                             Text(chapter.title, color = if (index == epubChapterIndex) Color(0xFF56745D) else readerForeground, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
@@ -1049,7 +1049,7 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                     if (savedBookmarks.isEmpty()) Text("No saved bookmarks yet.")
                     savedBookmarks.forEach { mark ->
                         Row(Modifier.fillMaxWidth().clickable {
-                            if (ext == "pdf") page = mark.location else if (ext == "txt") scope.launch { textScroll.scrollTo(mark.location) } else readerWebView?.scrollTo(0, mark.location)
+                            if (ext == "pdf") page = mark.location else if (ext == "txt") scope.launch { textScroll.scrollTo(mark.location) } else if (ext == "epub" && epubDocument != null) { epubChapterIndex = mark.location.coerceIn(0, epubDocument!!.chapters.lastIndex); content = epubDocument!!.chapters[epubChapterIndex].html } else readerWebView?.scrollTo(0, mark.location)
                             showBookmarks = false
                         }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text(mark.label, Modifier.weight(1f))
