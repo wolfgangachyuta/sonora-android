@@ -63,14 +63,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 
-private val Night = Color(0xFF090B10)
-private val Cream = Color(0xFFF4F1E9)
-private val PanelLight = Color(0xFFE3E4E7)
-private val PanelDark = Color(0xFF171A21)
-private val MutedLight = Color(0xFF77796F)
-private val MutedDark = Color(0xFFA3AAA0)
-private val Accent = Color(0xFFF2B8B5)
-val AccentDeep = Color(0xFFB3261E)
+private val Night = Color(0xFF121317)
+private val Cream = Color(0xFFF7F5F0)
+private val PanelLight = Color(0xFFECE9E2)
+private val PanelDark = Color(0xFF1C1E25)
+private val MutedLight = Color(0xFF8A887F)
+private val MutedDark = Color(0xFFA0A0A0)
+private val Accent = Color(0xFFC96F52)
+val AccentDeep = Accent
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -382,15 +382,20 @@ private fun SonoraApp() {
 
 @Composable
 private fun TopBrand(ink: Color, muted: Color, onSearch: () -> Unit, onFavourites: () -> Unit, onSettings: () -> Unit, onBooks: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text("SONORA", fontSize = 19.sp, fontWeight = FontWeight.Black, letterSpacing = 4.sp, color = ink)
-            Text("THE ART OF LISTENING", fontSize = 8.sp, letterSpacing = 1.6.sp, color = muted)
-        }
-        IconButton(onClick = onBooks) { Icon(Icons.Rounded.MenuBook, "Open Athenaeum book library", tint = ink) }
-        IconButton(onClick = onSearch) { Icon(Icons.Rounded.Search, "Search your library", tint = ink) }
-        IconButton(onClick = onFavourites) { Icon(Icons.Rounded.FavoriteBorder, "Favourite tracks", tint = ink) }
-        IconButton(onClick = onSettings) { Icon(Icons.Rounded.Tune, "Settings", tint = ink) }
+    Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("Sonora", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.3).sp, color = ink, modifier = Modifier.weight(1f))
+        IconButton(onClick = onBooks) { Icon(Icons.Rounded.MenuBook, "Open Athenaeum book library", tint = muted) }
+        IconButton(onClick = onSearch) { Icon(Icons.Rounded.Search, "Search your library", tint = muted) }
+        IconButton(onClick = onFavourites) { Icon(Icons.Rounded.FavoriteBorder, "Favourite tracks", tint = muted) }
+        IconButton(onClick = onSettings) { Icon(Icons.Rounded.Tune, "Settings", tint = muted) }
+    }
+}
+
+@Composable
+private fun PageHeader(title: String, subtitle: String? = null, ink: Color, muted: Color) {
+    Column(Modifier.padding(top = 4.dp, bottom = 14.dp)) {
+        Text(title, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.4).sp, color = ink)
+        if (subtitle != null) Text(subtitle, fontSize = 13.sp, color = muted)
     }
 }
 
@@ -400,9 +405,8 @@ private fun HomePage(tracks: List<AudioTrack>, current: AudioTrack?, playing: Bo
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
         item {
             Column {
-                Text("YOUR MUSIC, YOUR MOMENT", fontSize = 9.sp, color = muted, letterSpacing = 1.9.sp)
-                Text("Listen deeply.", fontSize = 39.sp, fontWeight = FontWeight.Medium, letterSpacing = (-2).sp, color = ink)
-                Text("A quieter place for the music you love.", fontSize = 11.sp, color = muted)
+                Text("Good to see you.", fontSize = 26.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.4).sp, color = ink)
+                Text("Here's what's in your library.", fontSize = 13.sp, color = muted)
             }
         }
         item {
@@ -433,49 +437,22 @@ private fun HomePage(tracks: List<AudioTrack>, current: AudioTrack?, playing: Bo
 }
 
 @Composable
+@Composable
 private fun FeatureCard(current: AudioTrack?, playing: Boolean, ink: Color, panel: Color, muted: Color, onPlay: (AudioTrack) -> Unit, onScan: () -> Unit) {
-    Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(30.dp))
-            .background(Brush.linearGradient(listOf(Color(0xFF172C29), Color(0xFF344B43), Color(0xFF765B54))))
-            .padding(20.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("SONORA SELECT", fontSize = 9.sp, letterSpacing = 2.sp, color = Color(0xFFE9B6A8), modifier = Modifier.weight(1f))
-            Text(if (playing) "NOW PLAYING" else "YOUR LIBRARY", fontSize = 8.sp, letterSpacing = 1.1.sp, color = Cream.copy(.72f))
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(panel).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        AlbumArtwork(current?.albumId, Modifier.size(64.dp).clip(RoundedCornerShape(14.dp)))
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(if (current != null) "Continue listening" else "Start listening", fontSize = 11.sp, color = muted)
+            Text(current?.title ?: "Scan your device to begin", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (current != null) Text(current.artist, fontSize = 12.sp, color = muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Spacer(Modifier.height(18.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            AlbumArtwork(current?.albumId, Modifier.size(124.dp).clip(RoundedCornerShape(22.dp)), darkFallback = true)
-            Spacer(Modifier.width(16.dp))
-            Column(Modifier.weight(1f)) {
-                Text(current?.title ?: "A little room for music.", fontSize = 20.sp, lineHeight = 24.sp,
-                    fontWeight = FontWeight.SemiBold, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Spacer(Modifier.height(5.dp))
-                Text(current?.artist ?: "Your collection, ready when you are.", fontSize = 11.sp,
-                    color = Color.White.copy(.72f), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Spacer(Modifier.height(15.dp))
-                Button(
-                    onClick = { current?.let(onPlay) ?: onScan() },
-                    enabled = current == null || !playing,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE9B6A8), contentColor = Color(0xFF17201D)),
-                    shape = RoundedCornerShape(50)
-                ) {
-                    Icon(Icons.Rounded.PlayArrow, null, modifier = Modifier.size(17.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(if (current == null) "DISCOVER" else if (playing) "PLAYING" else "PLAY NOW",
-                        fontSize = 9.sp, letterSpacing = 1.sp)
-                }
-            }
-        }
-        Spacer(Modifier.height(16.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("A PERSONAL SOUNDTRACK.", color = Color.White.copy(.72f), fontSize = 8.sp, letterSpacing = 1.5.sp, modifier = Modifier.weight(1f))
-            Icon(Icons.Rounded.GraphicEq, null, tint = Color(0xFFE9B6A8), modifier = Modifier.size(19.dp))
+        IconButton(onClick = { current?.let(onPlay) ?: onScan() }, modifier = Modifier.size(46.dp).clip(CircleShape).background(Accent)) {
+            Icon(Icons.Rounded.PlayArrow, contentDescription = if (current == null) "Scan for music" else "Play", tint = Color.White)
         }
     }
 }
 
-@Composable
 private fun LibraryPage(tracks: List<AudioTrack>, loading: Boolean, permission: Boolean, query: String, onQuery: (String) -> Unit, onFilter: (String) -> Unit, filter: String, onScan: () -> Unit, onPlay: (AudioTrack) -> Unit, current: AudioTrack?, favorites: Set<String>, onFavorite: (AudioTrack) -> Unit, ink: Color, paper: Color, panel: Color, muted: Color) {
     var sortBy by remember { mutableStateOf("Recently added") }
     var showSort by remember { mutableStateOf(false) }
@@ -488,9 +465,7 @@ private fun LibraryPage(tracks: List<AudioTrack>, loading: Boolean, permission: 
         else -> matching
     }
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        Text("THE COLLECTION", fontSize = 9.sp, letterSpacing = 1.8.sp, color = muted)
-        Text("Your library", fontSize = 35.sp, fontWeight = FontWeight.Medium, letterSpacing = (-1.5).sp, color = ink)
-        Text("${tracks.size} TRACKS · ON THIS DEVICE", fontSize = 9.sp, letterSpacing = 1.5.sp, color = muted)
+        PageHeader("Your library", "${tracks.size} tracks on this device", ink, muted)
         Spacer(Modifier.height(16.dp))
         SearchField(query, onQuery, ink, panel, muted)
         Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -585,8 +560,7 @@ private fun FetchPage(ink: Color, panel: Color, muted: Color) {
 private fun SearchPage(tracks: List<AudioTrack>, query: String, onQuery: (String) -> Unit, onPlay: (AudioTrack) -> Unit, current: AudioTrack?, ink: Color, panel: Color, muted: Color) {
     val results = if (query.isBlank()) emptyList() else tracks.filter { it.title.contains(query, true) || it.artist.contains(query, true) || it.album.contains(query, true) }
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        Text("DISCOVER YOUR LIBRARY", fontSize = 9.sp, letterSpacing = 1.8.sp, color = muted)
-        Text("Search", fontSize = 38.sp, fontWeight = FontWeight.Medium, letterSpacing = (-1.8).sp, color = ink)
+        PageHeader("Search", "Find songs, albums and artists", ink, muted)
         Spacer(Modifier.height(18.dp))
         SearchField(query, onQuery, ink, panel, muted)
         Spacer(Modifier.height(16.dp))
@@ -599,7 +573,7 @@ private fun SearchPage(tracks: List<AudioTrack>, query: String, onQuery: (String
 @Composable
 private fun GroupedPage(title: String, groups: List<Pair<String, List<AudioTrack>>>, subtitle: (Pair<String, List<AudioTrack>>) -> String, onPlay: (Pair<String, List<AudioTrack>>) -> Unit, onSwitch: () -> Unit, ink: Color, panel: Color, muted: Color) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        item { Column(verticalArrangement = Arrangement.spacedBy(7.dp)) { Text("BROWSE YOUR MUSIC", fontSize = 9.sp, color = muted, letterSpacing = 1.8.sp); Text(title, fontSize = 37.sp, fontWeight = FontWeight.Medium, color = ink, letterSpacing = (-1.8).sp); Text("${groups.size} ${title.lowercase()} in your collection", fontSize = 11.sp, color = muted); FilterPill(if (title == "Albums") "VIEW ARTISTS →" else "VIEW ALBUMS →", false, ink, panel, onSwitch) } }
+        item { Column { PageHeader(title, "${groups.size} ${title.lowercase()} in your collection", ink, muted); FilterPill(if (title == "Albums") "View artists" else "View albums", false, ink, panel, onSwitch) } }
         if (groups.isEmpty()) item { EmptyCard("Your collection is empty.", "Scan your device to build your collection.", "GO TO LIBRARY", {}, ink, panel, muted) }
         items(groups, key = { it.first }) { group ->
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(panel).clickable { onPlay(group) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -618,9 +592,7 @@ private fun GroupedPage(title: String, groups: List<Pair<String, List<AudioTrack
 @Composable
 private fun TrackCollectionPage(title: String, tracks: List<AudioTrack>, onPlay: (AudioTrack) -> Unit, current: AudioTrack?, favorites: Set<String>, onFavorite: (AudioTrack) -> Unit, ink: Color, panel: Color, muted: Color) {
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        Text("SAVED FOR LATER", fontSize = 9.sp, letterSpacing = 1.8.sp, color = muted)
-        Text(title, fontSize = 37.sp, fontWeight = FontWeight.Medium, letterSpacing = (-1.8).sp, color = ink)
-        Text("${tracks.size} tracks you have kept close", fontSize = 11.sp, color = muted)
+        PageHeader(title, "${tracks.size} tracks", ink, muted)
         if (tracks.isEmpty()) EmptyCard("Keep the songs close.", "Favourite a track from your library to find it here.", "OPEN LIBRARY", {}, ink, panel, muted)
         else LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) { items(tracks, key = { it.id }) { TrackRow(it, current?.id == it.id, { onPlay(it) }, ink, muted) } }
     }
@@ -649,9 +621,7 @@ private fun PlaylistsPage(
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("MADE BY YOU", fontSize = 9.sp, color = muted, letterSpacing = 1.8.sp)
-                    Text("Playlists", fontSize = 37.sp, fontWeight = FontWeight.Medium, color = ink, letterSpacing = (-1.8).sp)
-                    Text("${playlists.size} personal collections", fontSize = 11.sp, color = muted)
+                    PageHeader("Playlists", "${playlists.size} personal collections", ink, muted)
                 }
                 Button(onClick = { name = ""; showCreate = true }, shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = ink, contentColor = Cream)) {
                     Icon(Icons.Rounded.Add, null, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(4.dp)); Text("NEW", fontSize = 10.sp)
@@ -721,7 +691,7 @@ private fun StatsPage(tracks: List<AudioTrack>, counts: Map<String, Int>, recent
     val topArtists = tracks.groupBy { it.artist }.map { it.key to it.value.sumOf { t -> counts[t.id.toString()] ?: 0 } }.sortedByDescending { it.second }.take(5)
     val recent = recentIds.mapNotNull { id -> tracks.firstOrNull { it.id.toString() == id } }.distinctBy { it.id }.take(6)
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item { Column(verticalArrangement = Arrangement.spacedBy(4.dp)) { Text("YOUR LISTENING", fontSize = 9.sp, color = muted, letterSpacing = 1.8.sp); Text("The story so far.", fontSize = 36.sp, fontWeight = FontWeight.Medium, letterSpacing = (-1.7).sp, color = ink); Text("A little record of what you play.", fontSize = 11.sp, color = muted) } }
+        item { PageHeader("Listening statistics", "${totalPlays} plays across ${tracks.size} tracks", ink, muted) }
         item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { DashboardTile("TRACKS", tracks.size.toString(), Modifier.weight(1f), ink, panel, muted); DashboardTile("PLAY COUNTS", totalPlays.toString(), Modifier.weight(1f), ink, panel, muted); DashboardTile("ARTISTS", tracks.map { it.artist }.distinct().size.toString(), Modifier.weight(1f), ink, panel, muted) } }
         item { Text("IN HEAVY ROTATION", fontSize = 9.sp, color = muted, letterSpacing = 1.5.sp) }
         if (mostPlayed.isEmpty()) item { Text("Play some music. Your favourites in rotation will appear here.", color = muted, fontSize = 12.sp) }
@@ -767,8 +737,7 @@ private fun EqualizerPage(audioSessionId: Int, ink: Color, panel: Color, muted: 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back", tint = ink) }
                 Column(Modifier.weight(1f)) {
-                    Text("PERSONAL SOUND", fontSize = 9.sp, color = muted, letterSpacing = 1.8.sp)
-                    Text("Equalizer", fontSize = 34.sp, color = ink, fontWeight = FontWeight.Medium, letterSpacing = (-1.5).sp)
+                    PageHeader("Equalizer", "Adjust the sound of your music", ink, muted)
                 }
                 Icon(Icons.Rounded.GraphicEq, null, tint = ink, modifier = Modifier.size(30.dp))
             }
@@ -858,8 +827,7 @@ private fun EqualizerPage(audioSessionId: Int, ink: Color, panel: Color, muted: 
 @Composable
 private fun SettingsPage(dark: Boolean, onDark: (Boolean) -> Unit, shuffle: Boolean, onShuffle: (Boolean) -> Unit, repeat: Int, onRepeat: (Int) -> Unit, trackCount: Int, ink: Color, panel: Color, muted: Color, onEqualizer: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Preferences", fontSize = 36.sp, fontWeight = FontWeight.Medium, letterSpacing = (-1.5).sp, color = ink)
-        Text("MAKE SONORA YOUR OWN", fontSize = 9.sp, color = muted, letterSpacing = 1.4.sp)
+        PageHeader("Settings", "Preferences for listening", ink, muted)
         SettingToggle("Dark appearance", "A softer interface after dark.", dark, onDark, ink, panel, muted)
         SettingToggle("Shuffle", "Randomise the listening order.", shuffle, onShuffle, ink, panel, muted)
         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(panel).padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -905,16 +873,24 @@ private fun MiniPlayer(track: AudioTrack, playing: Boolean, position: Long, dura
 
 @Composable
 private fun BottomNav(selected: String, ink: Color, muted: Color, onSelect: (String) -> Unit) {
-    val destinations = listOf(Triple("Listen", Icons.Rounded.Home, "Listen"), Triple("Library", Icons.Rounded.LibraryMusic, "Library"), Triple("Albums", Icons.Rounded.Album, "Albums"), Triple("Fetch", Icons.Rounded.DownloadForOffline, "Fetch"), Triple("Playlists", Icons.Rounded.QueueMusic, "Playlists"), Triple("You", Icons.Rounded.Person, "Statistics"))
-    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 5.dp).clip(RoundedCornerShape(26.dp)).background(if (ink == Night) PanelDark else PanelLight).padding(horizontal = 3.dp, vertical = 4.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+    val destinations = listOf(
+        Triple("Listen", Icons.Rounded.Home, "Listen"),
+        Triple("Library", Icons.Rounded.LibraryMusic, "Library"),
+        Triple("Albums", Icons.Rounded.Album, "Albums"),
+        Triple("Fetch", Icons.Rounded.DownloadForOffline, "Fetch"),
+        Triple("Playlists", Icons.Rounded.QueueMusic, "Playlists"),
+        Triple("You", Icons.Rounded.Person, "Statistics")
+    )
+    val barBg = if (ink == Night) PanelDark else PanelLight
+    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp).clip(RoundedCornerShape(22.dp)).background(barBg).padding(4.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
         destinations.forEach { (label, icon, destination) ->
             val active = selected == destination
-            Column(Modifier.weight(1f).heightIn(min = 48.dp).clip(RoundedCornerShape(24.dp))
-                .background(if (active) Accent.copy(alpha = .32f) else Color.Transparent)
-                .selectable(selected = active, role = Role.Tab, onClick = { onSelect(destination) })
-                .padding(vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Icon(icon, contentDescription = null, tint = if (active) ink else muted, modifier = Modifier.size(20.dp))
-                Text(label, fontSize = 9.sp, fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal, color = if (active) ink else muted, maxLines = 1)
+            Column(Modifier.weight(1f).heightIn(min = 48.dp).clip(RoundedCornerShape(18.dp)).background(if (active) ink else Color.Transparent)
+                .selectable(selected = active, role = Role.Tab, onClick = { onSelect(destination) }).padding(vertical = 7.dp),
+                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Icon(icon, contentDescription = null, tint = if (active) barBg else muted, modifier = Modifier.size(19.dp))
+                Spacer(Modifier.height(2.dp))
+                Text(label, fontSize = 9.sp, fontWeight = if (active) FontWeight.Medium else FontWeight.Normal, color = if (active) barBg else muted, maxLines = 1)
             }
         }
     }
@@ -951,8 +927,10 @@ fun AlbumArtwork(albumId: Long?, modifier: Modifier = Modifier, darkFallback: Bo
     if (bitmap != null) {
         Image(bitmap!!.asImageBitmap(), contentDescription = "Album artwork", modifier = modifier)
     } else {
-        Box(modifier.background(Brush.linearGradient(listOf(Color(0xFF243B35), Color(0xFF799885), Color(0xFFE1C9A8)))), contentAlignment = Alignment.Center) {
-            Icon(Icons.Rounded.GraphicEq, null, tint = Color.White.copy(.9f), modifier = Modifier.size(25.dp))
+        val bg = if (darkFallback) Color(0xFF23262E) else Color(0xFFE7E4DC)
+        val fg = if (darkFallback) Color(0xFFCFCFC9) else Color(0xFF9B9890)
+        Box(modifier.background(bg), contentAlignment = Alignment.Center) {
+            Icon(Icons.Rounded.MusicNote, null, tint = fg, modifier = Modifier.size(22.dp))
         }
     }
 }
