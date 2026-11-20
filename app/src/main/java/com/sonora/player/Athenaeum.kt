@@ -34,6 +34,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.room.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -67,6 +69,7 @@ data class AthenaeumBook(
     val status: String = "Want to Read",
     val ownership: String = "Physical",
     val fileUri: String = "",
+    val fileType: String = "",
     val addedAt: Long = System.currentTimeMillis(),
     val lastOpenedAt: Long = 0L,
     val progress: Int = 0,
@@ -162,6 +165,7 @@ fun AthenaeumScreen() {
                         title = name.substringBeforeLast('.', name),
                         ownership = "Digital",
                         fileUri = uri.toString(),
+                        fileType = ext,
                         status = "Want to Read"
                     ))
                 }
@@ -250,7 +254,11 @@ fun AthenaeumScreen() {
     }
     if (message.isNotBlank()) AlertDialog(onDismissRequest = { message = "" }, title = { Text("Import notice") }, text = { Text(message) }, confirmButton = { TextButton(onClick = { message = "" }) { Text("OK") } })
     reading?.let { book ->
-        AthenaeumReader(book, dao, onClose = { reading = null })
+        Dialog(onDismissRequest = { reading = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            Surface(Modifier.fillMaxSize(), color = AthenaParchment) {
+                AthenaeumReader(book, dao, onClose = { reading = null })
+            }
+        }
     }
 }
 
@@ -332,7 +340,7 @@ private fun BookEditDialog(book: AthenaeumBook, shelves: List<AthenaeumShelf>, o
 private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val ext = book.fileUri.substringBefore('?').substringAfterLast('.', "").lowercase()
+    val ext = book.fileType.ifBlank { book.fileUri.substringBefore('?').substringAfterLast('.', "").lowercase() }
     var page by remember(book.id) { mutableIntStateOf(book.lastLocation.coerceAtLeast(0)) }
     var pageCount by remember { mutableIntStateOf(1) }
     var content by remember(book.id) { mutableStateOf("Loading your book…") }
@@ -425,8 +433,12 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                 settings.domStorageEnabled = false
                 webViewClient = WebViewClient()
                 setBackgroundColor(if (dark) android.graphics.Color.DKGRAY else android.graphics.Color.rgb(233, 222, 198))
+                tag = content
                 loadDataWithBaseURL(null, content, "text/html", "UTF-8", null)
-            } }, update = { web -> web.setBackgroundColor(if (dark) android.graphics.Color.DKGRAY else android.graphics.Color.rgb(233, 222, 198)) }, modifier = Modifier.weight(1f).fillMaxWidth())
+            } }, update = { web ->
+                web.setBackgroundColor(if (dark) android.graphics.Color.DKGRAY else android.graphics.Color.rgb(233, 222, 198))
+                if (web.tag != content) { web.tag = content; web.loadDataWithBaseURL(null, content, "text/html", "UTF-8", null) }
+            }, modifier = Modifier.weight(1f).fillMaxWidth())
             Text("EPUB / HTML reader · adjustable theme and library position", color = if (dark) AthenaParchment else AthenaWalnut, fontSize = 10.sp, modifier = Modifier.padding(12.dp))
         } else {
             androidx.compose.foundation.rememberScrollState()
