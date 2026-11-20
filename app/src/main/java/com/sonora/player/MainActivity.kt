@@ -155,6 +155,18 @@ private fun SonoraApp() {
         pendingMetadataValues = null
     }
 
+    val legacyMetadataPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val target = pendingMetadataUri
+        val values = pendingMetadataValues
+        if (granted && target != null && values != null) {
+            runCatching { context.contentResolver.update(target, values, null, null) }
+                .onSuccess { loading = true }
+                .onFailure { android.widget.Toast.makeText(context, "Could not update this track.", android.widget.Toast.LENGTH_LONG).show() }
+        }
+        pendingMetadataUri = null
+        pendingMetadataValues = null
+    }
+
     fun saveMetadata(track: AudioTrack, metadata: EditableTrackMetadata) {
         val uri = Uri.parse(track.uri)
         val values = ContentValues().apply {
@@ -173,6 +185,14 @@ private fun SonoraApp() {
             val request = MediaStore.createWriteRequest(context.contentResolver, listOf(uri))
             metadataWriteLauncher.launch(IntentSenderRequest.Builder(request.intentSender).build())
         } else {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+            ) {
+                pendingMetadataUri = uri
+                pendingMetadataValues = values
+                legacyMetadataPermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                return
+            }
             try {
                 context.contentResolver.update(uri, values, null, null)
                 loading = true
