@@ -396,7 +396,7 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
     }
 
     if (editing) {
-        BookEditDialog(draft, shelves, onDismiss = { editing = false }, onSave = { book, shelfIds ->
+        BookEditDialog(draft, shelves, onDismiss = { editing = false }, onDelete = { book -> scope.launch { dao.deleteBook(book) }; editing = false }, onSave = { book, shelfIds ->
             scope.launch {
                 val id = dao.saveBook(book)
                 shelfIds.forEach { dao.addToShelf(AthenaeumBookShelf(id, it)) }
@@ -532,7 +532,7 @@ private fun BookCollectionList(
 }
 
 @Composable
-private fun BookEditDialog(book: AthenaeumBook, shelves: List<AthenaeumShelf>, onDismiss: () -> Unit, onSave: (AthenaeumBook, List<Long>) -> Unit) {
+private fun BookEditDialog(book: AthenaeumBook, shelves: List<AthenaeumShelf>, onDismiss: () -> Unit, onDelete: (AthenaeumBook) -> Unit, onSave: (AthenaeumBook, List<Long>) -> Unit) {
     var title by remember(book.id) { mutableStateOf(book.title) }
     var author by remember(book.id) { mutableStateOf(book.author) }
     var publisher by remember(book.id) { mutableStateOf(book.publisher) }
@@ -546,6 +546,7 @@ private fun BookEditDialog(book: AthenaeumBook, shelves: List<AthenaeumShelf>, o
     var notes by remember(book.id) { mutableStateOf(book.notes) }
     var coverUri by remember(book.id) { mutableStateOf(book.coverUri) }
     var rating by remember(book.id) { mutableStateOf(book.rating.toString()) }
+    var confirmDelete by remember(book.id) { mutableStateOf(false) }
     val context = LocalContext.current
     val coverPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -598,8 +599,22 @@ private fun BookEditDialog(book: AthenaeumBook, shelves: List<AthenaeumShelf>, o
         confirmButton = { TextButton(onClick = {
             if (title.isNotBlank()) onSave(book.copy(title = title.trim(), author = author.trim(), publisher = publisher, publicationYear = year, isbn = isbn, genre = genre, language = language, description = description, status = status, ownership = ownership, notes = notes, coverUri = coverUri, rating = rating.toFloatOrNull()?.coerceIn(0f, 5f) ?: 0f), chosen.toList())
         }) { Text("SAVE", color = Color(0xFF56745D)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("CANCEL") } }
+        dismissButton = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (book.id != 0L) TextButton(onClick = { confirmDelete = true }) { Text("DELETE", color = Color(0xFF9B4B45)) }
+                TextButton(onClick = onDismiss) { Text("CANCEL") }
+            }
+        }
     )
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("Remove this book?") },
+            text = { Text("${book.title} will be removed from your Athenaeum, including its saved bookmarks.") },
+            confirmButton = { TextButton(onClick = { confirmDelete = false; onDelete(book) }) { Text("REMOVE", color = Color(0xFF9B4B45)) } },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("KEEP BOOK") } }
+        )
+    }
 }
 
 @Composable
