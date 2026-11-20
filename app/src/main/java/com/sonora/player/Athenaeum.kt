@@ -347,6 +347,15 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
     var bitmap by remember(book.id) { mutableStateOf<Bitmap?>(null) }
     var textSize by remember { mutableFloatStateOf(18f) }\n    val textScroll = rememberScrollState(book.lastLocation.coerceAtLeast(0))
     var dark by remember { mutableStateOf(false) }
+    var readerWebView by remember { mutableStateOf<WebView?>(null) }
+
+    DisposableEffect(readerWebView) {
+        onDispose {
+            readerWebView?.let { web ->
+                scope.launch { dao.updateProgress(book.id, book.progress, web.scrollY) }
+            }
+        }
+    }
 
     LaunchedEffect(book.id) {
         if (book.fileUri.isBlank()) content = "This is a physical catalogue entry. Import a digital edition to read it here."
@@ -371,7 +380,7 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                     when (ext) {
                         "txt" -> bytes.toString(Charsets.UTF_8)
                         "html", "htm" -> bytes.toString(Charsets.UTF_8)
-                        "fb2" -> {\n                            val xml = bytes.toString(Charsets.UTF_8)\n                            val body = xml.substringAfter("<body", xml).substringAfter(">", xml).substringBefore("</body>", xml)\n                            "<html><body>" + body.replace(Regex("<p[^>]*>"), "<p>").replace(Regex("<\\\\/p>", RegexOption.IGNORE_CASE), "</p>") + "</body></html>"\n                        }\n                        "epub" -> {
+                        "fb2" -> {\n                            val xml = bytes.toString(Charsets.UTF_8)\n                            val body = xml.substringAfter("<body", xml).substringAfter(">", xml).substringBefore("</body>", xml)\n                            "<html><body>" + body.replace(Regex("<p[^>]*>"), "<p>") + "</body></html>"\n                        }\n                        "epub" -> {
                             val output = StringBuilder()
                             ZipInputStream(bytes.inputStream()).use { zip ->
                                 var entry = zip.nextEntry
@@ -431,13 +440,19 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
             AndroidView(factory = { ctx -> WebView(ctx).apply {
                 settings.javaScriptEnabled = false
                 settings.domStorageEnabled = false
-                webViewClient = WebViewClient()
+                webViewClient = object : WebViewClient() {
+                    override fun onPageFinished(view: WebView?, url: String?) {
+                        view?.scrollTo(0, book.lastLocation.coerceAtLeast(0))
+                    }
+                }
                 setBackgroundColor(if (dark) android.graphics.Color.DKGRAY else android.graphics.Color.rgb(233, 222, 198))
                 tag = content
+                readerWebView = this
                 loadDataWithBaseURL(null, content, "text/html", "UTF-8", null)
             } }, update = { web ->
                 web.setBackgroundColor(if (dark) android.graphics.Color.DKGRAY else android.graphics.Color.rgb(233, 222, 198))
                 if (web.tag != content) { web.tag = content; web.loadDataWithBaseURL(null, content, "text/html", "UTF-8", null) }
+                if (web.scrollY == 0 && book.lastLocation > 0) web.post { web.scrollTo(0, book.lastLocation) }
             }, modifier = Modifier.weight(1f).fillMaxWidth())
             Text("EPUB / HTML reader · adjustable theme and library position", color = if (dark) AthenaParchment else AthenaWalnut, fontSize = 10.sp, modifier = Modifier.padding(12.dp))
         } else {
