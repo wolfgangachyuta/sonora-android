@@ -2,6 +2,7 @@ package com.sonora.player
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.ParcelFileDescriptor
@@ -276,7 +277,7 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
                 }
             }.getOrNull() ?: "Untitled book"
             val ext = name.substringAfterLast('.', "").lowercase()
-            if (ext in setOf("epub", "pdf", "txt", "html", "htm", "fb2")) {
+            if (ext in setOf("epub", "pdf", "txt", "html", "htm", "fb2", "mobi", "rtf", "md", "markdown", "cbz")) {
                 scope.launch {
                     dao.saveBook(AthenaeumBook(title = name.substringBeforeLast('.', name), ownership = "Digital", fileUri = uri.toString(), fileType = ext, status = "Want to Read"))
                 }
@@ -319,7 +320,7 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
             IconButton(onClick = { exportLauncher.launch("athenaeum-backup.json") }) { Icon(Icons.Rounded.FileDownload, "Export full library backup", tint = Color(0xFF454640)) }
             IconButton(onClick = { restoreLauncher.launch(arrayOf("application/json", "text/json", "text/plain")) }) { Icon(Icons.Rounded.FileUpload, "Restore library backup", tint = Color(0xFF454640)) }
             IconButton(onClick = onBack) { Icon(Icons.Rounded.Close, "Close Athenaeum", tint = Color(0xFF454640)) }
-            IconButton(onClick = { importLauncher.launch(arrayOf("application/epub+zip", "application/pdf", "text/plain", "text/html", "application/x-fictionbook+xml", "application/octet-stream")) }) {
+            IconButton(onClick = { importLauncher.launch(arrayOf("application/epub+zip", "application/pdf", "text/plain", "text/html", "application/x-fictionbook+xml", "application/x-mobipocket-ebook", "application/rtf", "text/markdown", "application/vnd.comicbook+zip", "application/octet-stream")) }) {
                 Icon(Icons.Rounded.FileOpen, "Import books", tint = Color(0xFF30312D))
             }
             FilledIconButton(onClick = { draft = AthenaeumBook(title = ""); editing = true }, colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color(0xFF252722), contentColor = Color.White)) {
@@ -718,6 +719,8 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
     var annotationQuote by remember { mutableStateOf("") }
     var annotationNote by remember { mutableStateOf("") }
     var epubDocument by remember(book.id) { mutableStateOf<EpubDocument?>(null) }
+    var comicPages by remember(book.id) { mutableStateOf(emptyList<Bitmap>()) }
+    var comicPage by remember(book.id) { mutableIntStateOf(book.lastLocation.coerceAtLeast(0)) }
     var epubChapterIndex by remember(book.id) { mutableIntStateOf(book.progress.coerceIn(0, 100)) }
     var showToc by remember { mutableStateOf(false) }
     val sessionStartedAt = remember(book.id) { System.currentTimeMillis() }
@@ -757,6 +760,15 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                     bitmap = image
                 }.onFailure { content = "Could not open this PDF: ${it.message}" }
             }
+        } else if (ext == "cbz") {
+            val pages = withContext(Dispatchers.IO) {
+                runCatching { ComicArchiveReader.read(context.contentResolver, Uri.parse(book.fileUri)) }
+            }
+            pages.onSuccess {
+                comicPages = it
+                comicPage = book.lastLocation.coerceIn(0, (it.size - 1).coerceAtLeast(0))
+                if (it.isEmpty()) content = "This comic archive contains no readable image pages."
+            }.onFailure { content = "Unable to open this comic archive: " + it.message }
         } else if (ext == "epub") {
             val parsed = withContext(Dispatchers.IO) {
                 runCatching {
@@ -781,6 +793,9 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                             val body = xml.substringAfter("<body", xml).substringAfter(">", xml).substringBefore("</body>", xml)
                             "<html><body>" + body.replace(Regex("<p[^>]*>"), "<p>") + "</body></html>"
                         }
+                        "mobi" -> MobiParser.read(bytes)
+                        "md", "markdown" -> PlainTextFormats.markdownToHtml(bytes.toString(Charsets.UTF_8))
+                        "rtf" -> PlainTextFormats.rtfToHtml(bytes.toString(Charsets.UTF_8))
                         else -> "This format is not supported by the current reader. Supported formats in this release: EPUB, PDF, TXT and HTML."
                     }
                 }.getOrElse { "Unable to read this file: ${it.message}" }
@@ -841,7 +856,17 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                 }
                 dao.updateProgress(book.id, ((page + 1) * 100 / pageCount.coerceAtLeast(1)), page)
             }
-        } else if (ext == "epub" || ext == "html" || ext == "htm" || ext == "fb2") {
+        } else if (ext == "cbz" && comicPages.isNotEmpty()) {
+            Box(Modifier.weight(1f).fillMaxWidth().padding(8.dp), contentAlignment = Alignment.Center) {
+                Image(comicPages[comicPage.coerceIn(0, comicPages.lastIndex)].asImageBitmap(), contentDescription = "Comic page ${comicPage + 1}", modifier = Modifier.fillMaxSize())
+            }
+            Row(Modifier.fillMaxWidth().background(readerBar).padding(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { comicPage = (comicPage - 1).coerceAtLeast(0) }, enabled = comicPage > 0) { Text("Previous", color = readerForeground) }
+                Text("${comicPage + 1} / ${comicPages.size}", color = readerForeground)
+                TextButton(onClick = { comicPage = (comicPage + 1).coerceAtMost(comicPages.lastIndex) }, enabled = comicPage < comicPages.lastIndex) { Text("Next", color = readerForeground) }
+            }
+            LaunchedEffect(comicPage) { dao.updateProgress(book.id, ((comicPage + 1) * 100 / comicPages.size.coerceAtLeast(1)), comicPage) }
+        } else if (ext == "epub" || ext == "html" || ext == "htm" || ext == "fb2" || ext == "mobi" || ext == "md" || ext == "markdown" || ext == "rtf") {
             AndroidView(factory = { ctx -> WebView(ctx).apply {
                 settings.javaScriptEnabled = false
                 settings.domStorageEnabled = false
