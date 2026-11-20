@@ -15,6 +15,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -173,7 +175,7 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
     val books by dao.observeBooks().collectAsState(initial = emptyList())
     val shelves by dao.observeShelves().collectAsState(initial = emptyList())
     var search by remember { mutableStateOf("") }
-    var filter by remember { mutableStateOf("All Books") }
+    var filter by remember { mutableStateOf("All books") }
     var selectedShelf by remember { mutableStateOf<Long?>(null) }
     var editing by remember { mutableStateOf(false) }
     var draft by remember { mutableStateOf(AthenaeumBook(title = "")) }
@@ -181,6 +183,9 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
     var shelfDialog by remember { mutableStateOf(false) }
     var shelfName by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
+    var gridMode by remember { mutableStateOf(true) }
+    var sortBy by remember { mutableStateOf("Recently added") }
+    var showSort by remember { mutableStateOf(false) }
 
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         uris.forEach { uri ->
@@ -191,103 +196,188 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
                 }
             }.getOrNull() ?: "Untitled book"
             val ext = name.substringAfterLast('.', "").lowercase()
-            val supported = ext in setOf("epub", "pdf", "txt", "html", "htm", "fb2")
-            if (supported) {
+            if (ext in setOf("epub", "pdf", "txt", "html", "htm", "fb2")) {
                 scope.launch {
-                    dao.saveBook(AthenaeumBook(
-                        title = name.substringBeforeLast('.', name),
-                        ownership = "Digital",
-                        fileUri = uri.toString(),
-                        fileType = ext,
-                        status = "Want to Read"
-                    ))
+                    dao.saveBook(AthenaeumBook(title = name.substringBeforeLast('.', name), ownership = "Digital", fileUri = uri.toString(), fileType = ext, status = "Want to Read"))
                 }
-            } else message = "That file type is not supported yet: .$ext"
+            } else message = "This format is not supported by the current reader: .$ext"
         }
     }
 
-    val filteredBooks = books.filter { book ->
+    val matchingBooks = books.filter { book ->
         val matchesSearch = search.isBlank() || listOf(book.title, book.author, book.isbn, book.publisher, book.genre).any { it.contains(search, true) }
         val matchesFilter = when (filter) {
-            "Favourites" -> book.favorite
-            "Currently Reading" -> book.status == "Currently Reading"
+            "Currently reading" -> book.status == "Currently Reading"
+            "Want to read" -> book.status == "Want to Read"
             "Finished" -> book.status == "Finished"
-            "Want to Read" -> book.status == "Want to Read"
+            "Favourites" -> book.favorite
             "Physical" -> book.ownership.contains("Physical")
             "Digital" -> book.fileUri.isNotBlank()
             else -> true
         }
         matchesSearch && matchesFilter
     }
+    val visibleBooks = when (sortBy) {
+        "Title A–Z" -> matchingBooks.sortedBy { it.title.lowercase() }
+        "Author A–Z" -> matchingBooks.sortedBy { it.author.lowercase() }
+        "Progress" -> matchingBooks.sortedByDescending { it.progress }
+        else -> matchingBooks.sortedByDescending { it.lastOpenedAt.takeIf { time -> time > 0L } ?: it.addedAt }
+    }
+    val currentlyReading = books.filter { it.status == "Currently Reading" }.sortedByDescending { it.lastOpenedAt }
 
-    Column(Modifier.fillMaxSize().background(AthenaWalnut)) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back to SONORA", tint = AthenaGold) }
+    Column(Modifier.fillMaxSize().background(Color(0xFFF6F5F1))) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Column(Modifier.weight(1f)) {
-                Text("ATHENAEUM", color = AthenaGold, fontSize = 10.sp, letterSpacing = 3.sp, fontWeight = FontWeight.Bold)
-                Text("Your private reading room.", color = AthenaIvory, fontSize = 27.sp, fontFamily = FontFamily.Serif)
-                Text("${books.size} books  ·  ${shelves.size} shelves", color = AthenaParchment.copy(alpha = .75f), fontSize = 11.sp)
+                Text("YOUR LIBRARY", color = Color(0xFF77766F), fontSize = 10.sp, letterSpacing = 1.6.sp, fontWeight = FontWeight.SemiBold)
+                Text("Books", color = Color(0xFF20211F), fontSize = 30.sp, fontWeight = FontWeight.SemiBold)
+                Text("${books.size} books in your collection", color = Color(0xFF77766F), fontSize = 12.sp)
             }
+            IconButton(onClick = onBack) { Icon(Icons.Rounded.Close, "Close Athenaeum", tint = Color(0xFF454640)) }
             IconButton(onClick = { importLauncher.launch(arrayOf("application/epub+zip", "application/pdf", "text/plain", "text/html", "application/x-fictionbook+xml", "application/octet-stream")) }) {
-                Icon(Icons.Rounded.FileOpen, "Import books", tint = AthenaGold)
+                Icon(Icons.Rounded.FileOpen, "Import books", tint = Color(0xFF30312D))
             }
-            IconButton(onClick = { draft = AthenaeumBook(title = ""); editing = true }) {
-                Icon(Icons.Rounded.Add, "Add book", tint = AthenaGold)
+            FilledIconButton(onClick = { draft = AthenaeumBook(title = ""); editing = true }, colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color(0xFF252722), contentColor = Color.White)) {
+                Icon(Icons.Rounded.Add, "Add book")
             }
-        }
-        val finishedBooks = books.count { it.status == "Finished" }
-        val goalProgress = finishedBooks.toFloat().div(readingGoal.toFloat()).coerceIn(0f, 1f)
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).clip(RoundedCornerShape(8.dp)).background(AthenaMahogany).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("THE READING CHALLENGE", color = AthenaGold, fontSize = 9.sp, letterSpacing = 1.6.sp, fontWeight = FontWeight.Bold)
-                    Text("$finishedBooks of $readingGoal books completed", color = AthenaIvory, fontFamily = FontFamily.Serif, fontSize = 17.sp)
-                }
-                TextButton(onClick = {
-                    readingGoal = (readingGoal - 1).coerceAtLeast(1)
-                    preferences.edit().putInt("reading_goal_books", readingGoal).apply()
-                }, enabled = readingGoal > 1) { Text("−", color = AthenaGold, fontSize = 20.sp) }
-                TextButton(onClick = {
-                    readingGoal = (readingGoal + 1).coerceAtMost(200)
-                    preferences.edit().putInt("reading_goal_books", readingGoal).apply()
-                }, enabled = readingGoal < 200) { Text("+", color = AthenaGold, fontSize = 20.sp) }
-            }
-            LinearProgressIndicator(progress = { goalProgress }, modifier = Modifier.fillMaxWidth().height(5.dp), color = AthenaGold, trackColor = AthenaWalnut)
-            Text(if (finishedBooks >= readingGoal) "Goal reached. Set another and keep reading." else "${(readingGoal - finishedBooks).coerceAtLeast(0)} books to your goal", color = AthenaParchment.copy(.8f), fontSize = 10.sp)
         }
 
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(search, { search = it }, Modifier.weight(1f), placeholder = { Text("Search title, author, ISBN…", color = AthenaParchment.copy(.55f)) }, singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = AthenaIvory, unfocusedTextColor = AthenaIvory, focusedBorderColor = AthenaGold, unfocusedBorderColor = AthenaGold.copy(.4f), cursorColor = AthenaGold))
-            IconButton(onClick = { shelfDialog = true }) { Icon(Icons.Rounded.AddBox, "Create bookshelf", tint = AthenaGold) }
-        }
-        Row(Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            listOf("All Books", "Currently Reading", "Want to Read", "Finished", "Favourites", "Physical", "Digital").forEach { choice ->
-                FilterChip(selected = filter == choice, onClick = { filter = choice; selectedShelf = null }, label = { Text(choice, fontSize = 10.sp) },
-                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = AthenaGold, selectedLabelColor = AthenaWalnut, labelColor = AthenaParchment))
-            }
-        }
-        if (shelves.isNotEmpty()) {
-            Row(Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                shelves.forEach { shelf ->
-                    AssistChip(onClick = { selectedShelf = if (selectedShelf == shelf.id) null else shelf.id }, label = { Text(shelf.name) },
-                        colors = AssistChipDefaults.assistChipColors(containerColor = if (selectedShelf == shelf.id) AthenaGold else AthenaGreen, labelColor = if (selectedShelf == shelf.id) AthenaWalnut else AthenaIvory))
+        if (currentlyReading.isNotEmpty()) {
+            Column(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp)) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("PICK UP WHERE YOU LEFT OFF", color = Color(0xFF77766F), fontSize = 10.sp, letterSpacing = 1.1.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.weight(1f))
+                    Text("${currentlyReading.size} reading", color = Color(0xFF77766F), fontSize = 10.sp)
+                }
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    currentlyReading.take(8).forEach { book ->
+                        Row(
+                            Modifier.width(278.dp).clip(RoundedCornerShape(12.dp)).background(Color.White)
+                                .clickable { reading = book }
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AthenaBookCover(book, Modifier.width(54.dp).height(76.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(book.title, color = Color(0xFF20211F), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                Text(book.author.ifBlank { "Unknown author" }, color = Color(0xFF77766F), fontSize = 11.sp, maxLines = 1)
+                                LinearProgressIndicator(progress = { book.progress.coerceIn(0, 100) / 100f }, modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(4.dp)), color = Color(0xFF56745D), trackColor = Color(0xFFE8E8E2))
+                                Text("${book.progress.coerceIn(0, 100)}% read", color = Color(0xFF77766F), fontSize = 10.sp)
+                            }
+                        }
+                    }
                 }
             }
         }
-        if (selectedShelf != null) {
-            val shelfBooks by dao.booksOnShelf(selectedShelf!!).collectAsState(initial = emptyList())
-            BookCollectionList(shelfBooks, { book -> scope.launch { dao.saveBook(book.copy(status = if (book.status == "Finished") "Finished" else "Currently Reading", lastOpenedAt = System.currentTimeMillis())) }; reading = book }, { book -> draft = book; editing = true }, { book -> scope.launch { dao.setFavorite(book.id, !book.favorite) } }, ink = AthenaIvory, muted = AthenaParchment)
-        } else if (filteredBooks.isEmpty()) {
-            Column(Modifier.fillMaxWidth().weight(1f).padding(28.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Rounded.MenuBook, null, tint = AthenaGold, modifier = Modifier.size(54.dp))
-                Text(if (books.isEmpty()) "Your shelves are waiting." else "No books found.", color = AthenaIvory, fontSize = 22.sp, fontFamily = FontFamily.Serif)
-                Text(if (books.isEmpty()) "Add a physical volume or import an ebook to begin your collection." else "Try another search or collection.", color = AthenaParchment, fontSize = 12.sp)
-                Spacer(Modifier.height(14.dp))
-                Button(onClick = { draft = AthenaeumBook(title = ""); editing = true }, colors = ButtonDefaults.buttonColors(containerColor = AthenaGold, contentColor = AthenaWalnut)) { Text("ADD YOUR FIRST BOOK") }
+
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = search, onValueChange = { search = it },
+                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                placeholder = { Text("Search your books", fontSize = 13.sp, color = Color(0xFF85867F)) },
+                leadingIcon = { Icon(Icons.Rounded.Search, null, tint = Color(0xFF77766F)) },
+                trailingIcon = { if (search.isNotBlank()) IconButton(onClick = { search = "" }) { Icon(Icons.Rounded.Close, "Clear search") } },
+                singleLine = true, shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color(0xFF20211F), unfocusedTextColor = Color(0xFF20211F),
+                    focusedContainerColor = Color.White, unfocusedContainerColor = Color.White,
+                    focusedBorderColor = Color(0xFF777F70), unfocusedBorderColor = Color(0xFFE3E2DC),
+                    cursorColor = Color(0xFF56745D)
+                )
+            )
+            Spacer(Modifier.width(8.dp))
+            Box {
+                IconButton(onClick = { showSort = true }) { Icon(Icons.Rounded.Sort, "Sort books", tint = Color(0xFF454640)) }
+                DropdownMenu(expanded = showSort, onDismissRequest = { showSort = false }) {
+                    listOf("Recently added", "Title A–Z", "Author A–Z", "Progress").forEach { option ->
+                        DropdownMenuItem(text = { Text(option) }, onClick = { sortBy = option; showSort = false })
+                    }
+                }
             }
-        } else BookCollectionList(filteredBooks, { book -> reading = book }, { book -> draft = book; editing = true }, { book -> scope.launch { dao.setFavorite(book.id, !book.favorite) } }, ink = AthenaIvory, muted = AthenaParchment)
-        Spacer(Modifier.height(8.dp))
+            IconButton(onClick = { gridMode = !gridMode }) {
+                Icon(if (gridMode) Icons.Rounded.ViewList else Icons.Rounded.GridView, if (gridMode) "Switch to list" else "Switch to grid", tint = Color(0xFF454640))
+            }
+        }
+
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 3.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("All books", "Currently reading", "Want to read", "Finished", "Favourites", "Physical", "Digital").forEach { choice ->
+                FilterChip(
+                    selected = filter == choice, onClick = { filter = choice; selectedShelf = null },
+                    label = { Text(choice, fontSize = 11.sp) },
+                    shape = RoundedCornerShape(9.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0xFF252722), selectedLabelColor = Color.White,
+                        containerColor = Color.Transparent, labelColor = Color(0xFF55564F)
+                    ),
+                    border = FilterChipDefaults.filterChipBorder(
+                        enabled = true, selected = filter == choice,
+                        borderColor = Color(0xFFDDDDD5), selectedBorderColor = Color(0xFF252722)
+                    )
+                )
+            }
+        }
+
+        if (shelves.isNotEmpty()) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 5.dp), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                shelves.forEach { shelf ->
+                    FilterChip(
+                        selected = selectedShelf == shelf.id,
+                        onClick = { selectedShelf = if (selectedShelf == shelf.id) null else shelf.id },
+                        label = { Text(shelf.name, fontSize = 10.sp) },
+                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Color(0xFFE4E9E1), selectedLabelColor = Color(0xFF334B38), labelColor = Color(0xFF65665F))
+                    )
+                }
+                TextButton(onClick = { shelfDialog = true }) { Icon(Icons.Rounded.Add, null, modifier = Modifier.size(14.dp)); Text("New shelf", fontSize = 11.sp) }
+            }
+        }
+
+        if (books.isNotEmpty()) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(if (selectedShelf != null) "SHELF" else filter.uppercase(), color = Color(0xFF77766F), fontSize = 10.sp, letterSpacing = 1.1.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.weight(1f))
+                Text("${visibleBooks.size} titles · $sortBy", color = Color(0xFF85867F), fontSize = 10.sp)
+            }
+        }
+
+        val shelfBooks by remember(selectedShelf) {
+            selectedShelf?.let { dao.booksOnShelf(it) } ?: kotlinx.coroutines.flow.flowOf(emptyList())
+        }.collectAsState(initial = emptyList())
+
+        val displayBooks = if (selectedShelf != null) {
+            when (sortBy) {
+                "Title A–Z" -> shelfBooks.sortedBy { it.title.lowercase() }
+                "Author A–Z" -> shelfBooks.sortedBy { it.author.lowercase() }
+                "Progress" -> shelfBooks.sortedByDescending { it.progress }
+                else -> shelfBooks.sortedByDescending { it.lastOpenedAt.takeIf { t -> t > 0L } ?: it.addedAt }
+            }.filter { search.isBlank() || it.title.contains(search, true) || it.author.contains(search, true) }
+        } else visibleBooks
+
+        if (displayBooks.isEmpty()) {
+            Column(Modifier.fillMaxSize().padding(28.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(Icons.Rounded.MenuBook, null, tint = Color(0xFF92938A), modifier = Modifier.size(44.dp))
+                Spacer(Modifier.height(12.dp))
+                Text(if (books.isEmpty()) "Your next favourite book starts here." else "No books found", color = Color(0xFF292A26), fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
+                Text(if (books.isEmpty()) "Add a book or import an EPUB, PDF or text file." else "Try a different search or filter.", color = Color(0xFF77766F), fontSize = 12.sp)
+                Spacer(Modifier.height(14.dp))
+                Button(onClick = { draft = AthenaeumBook(title = ""); editing = true }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF252722), contentColor = Color.White), shape = RoundedCornerShape(10.dp)) { Text("ADD A BOOK") }
+            }
+        } else {
+            BookCollectionList(
+                books = displayBooks,
+                onOpen = { book ->
+                    scope.launch {
+                        dao.saveBook(book.copy(status = if (book.status == "Finished") "Finished" else "Currently Reading", lastOpenedAt = System.currentTimeMillis()))
+                    }
+                    reading = book
+                },
+                onEdit = { draft = it; editing = true },
+                onFavorite = { book -> scope.launch { dao.setFavorite(book.id, !book.favorite) } },
+                ink = Color(0xFF252722), muted = Color(0xFF77766F), gridMode = gridMode
+            )
+        }
     }
 
     if (editing) {
@@ -300,18 +390,56 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
         })
     }
     if (shelfDialog) {
-        AlertDialog(onDismissRequest = { shelfDialog = false }, title = { Text("New bookshelf") },
-            text = { OutlinedTextField(shelfName, { shelfName = it }, label = { Text("Shelf name") }) },
+        AlertDialog(
+            onDismissRequest = { shelfDialog = false },
+            title = { Text("New shelf", color = Color(0xFF252722)) },
+            text = { OutlinedTextField(shelfName, { shelfName = it }, label = { Text("Shelf name") }, singleLine = true) },
             confirmButton = { TextButton(onClick = {
                 if (shelfName.isNotBlank()) scope.launch { dao.saveShelf(AthenaeumShelf(name = shelfName.trim())) }
                 shelfName = ""; shelfDialog = false
-            }) { Text("CREATE") } }, dismissButton = { TextButton(onClick = { shelfDialog = false }) { Text("CANCEL") } })
+            }) { Text("CREATE", color = Color(0xFF425D48)) } },
+            dismissButton = { TextButton(onClick = { shelfDialog = false }) { Text("CANCEL") } }
+        )
     }
     if (message.isNotBlank()) AlertDialog(onDismissRequest = { message = "" }, title = { Text("Import notice") }, text = { Text(message) }, confirmButton = { TextButton(onClick = { message = "" }) { Text("OK") } })
     reading?.let { book ->
         Dialog(onDismissRequest = { reading = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            Surface(Modifier.fillMaxSize(), color = AthenaParchment) {
+            Surface(Modifier.fillMaxSize(), color = Color(0xFFF6F3EC)) {
                 AthenaeumReader(book, dao, onClose = { reading = null })
+            }
+        }
+    }
+}
+
+@Composable
+private fun AthenaBookCover(book: AthenaeumBook, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    var bitmap by remember(book.coverUri) { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(book.coverUri) {
+        bitmap = if (book.coverUri.isBlank()) null else withContext(Dispatchers.IO) {
+            runCatching {
+                context.contentResolver.openInputStream(Uri.parse(book.coverUri))?.use { android.graphics.BitmapFactory.decodeStream(it) }
+            }.getOrNull()
+        }
+    }
+    val palettes = listOf(Color(0xFF354B43), Color(0xFF6A3D3D), Color(0xFF394D68), Color(0xFF94734D), Color(0xFF4D465F), Color(0xFF65745A))
+    Box(modifier.clip(RoundedCornerShape(5.dp)).background(Color(0xFFE7E5DE))) {
+        if (bitmap != null) {
+            Image(bitmap!!.asImageBitmap(), contentDescription = "Cover of ${book.title}", modifier = Modifier.fillMaxSize())
+        } else {
+            val coverColor = palettes[(book.id % palettes.size).toInt()]
+            Column(
+                Modifier.fillMaxSize().background(coverColor).padding(horizontal = 7.dp, vertical = 9.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(.45f)))
+                Spacer(Modifier.height(7.dp))
+                Text(book.title, color = Color.White, fontFamily = FontFamily.Serif, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, lineHeight = 14.sp, maxLines = 4, overflow = TextOverflow.Ellipsis)
+                Spacer(Modifier.height(5.dp))
+                Text(book.author.ifBlank { " " }, color = Color.White.copy(.8f), fontSize = 8.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Spacer(Modifier.height(7.dp))
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(.45f)))
             }
         }
     }
@@ -324,20 +452,65 @@ private fun BookCollectionList(
     onEdit: (AthenaeumBook) -> Unit,
     onFavorite: (AthenaeumBook) -> Unit,
     ink: Color,
-    muted: Color
+    muted: Color,
+    gridMode: Boolean
 ) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-        items(books, key = { it.id }) { book ->
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(5.dp)).background(AthenaMahogany).clickable { onOpen(book) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.width(7.dp).height(68.dp).background(listOf(AthenaGreen, AthenaBurgundy, AthenaGold, Color(0xFF76513D))[((book.id % 4).toInt())]))
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(book.title, color = ink, fontSize = 17.sp, fontFamily = FontFamily.Serif, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    Text(book.author.ifBlank { "Author unknown" }, color = muted, fontSize = 11.sp)
-                    Text("${book.status.uppercase()}  ·  ${if (book.fileUri.isNotBlank()) "DIGITAL" else book.ownership.uppercase()}${if (book.progress > 0) "  ·  ${book.progress}%" else ""}", color = AthenaGold, fontSize = 8.sp, letterSpacing = 1.sp)
+    if (gridMode) {
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(minSize = 142.dp),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            items(books, key = { it.id }) { book ->
+                Column(Modifier.fillMaxWidth().clickable { onOpen(book) }) {
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopEnd) {
+                        AthenaBookCover(book, Modifier.fillMaxWidth().aspectRatio(.68f))
+                        IconButton(
+                            onClick = { onFavorite(book) },
+                            modifier = Modifier.padding(4.dp).size(32.dp).clip(CircleShape).background(Color.White.copy(.92f))
+                        ) {
+                            Icon(if (book.favorite) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder, "Toggle favourite", tint = if (book.favorite) Color(0xFF9B4B45) else Color(0xFF4D504A), modifier = Modifier.size(17.dp))
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(book.title, color = ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 17.sp)
+                    Text(book.author.ifBlank { "Unknown author" }, color = muted, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (book.progress > 0 && book.status != "Finished") {
+                        Spacer(Modifier.height(5.dp))
+                        LinearProgressIndicator(progress = { book.progress.coerceIn(0, 100) / 100f }, modifier = Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(3.dp)), color = Color(0xFF66816B), trackColor = Color(0xFFE5E5DE))
+                    }
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(if (book.status == "Currently Reading") "${book.progress}% read" else book.status, color = Color(0xFF85867F), fontSize = 9.sp, modifier = Modifier.weight(1f), maxLines = 1)
+                        IconButton(onClick = { onEdit(book) }, modifier = Modifier.size(30.dp)) { Icon(Icons.Rounded.MoreHoriz, "Book options", tint = muted, modifier = Modifier.size(18.dp)) }
+                    }
                 }
-                IconButton(onClick = { onFavorite(book) }) { Icon(if (book.favorite) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder, "Favourite", tint = AthenaGold) }
-                IconButton(onClick = { onEdit(book) }) { Icon(Icons.Rounded.Edit, "Edit book", tint = muted) }
+            }
+        }
+    } else {
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            items(books, key = { it.id }) { book ->
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable { onOpen(book) }.padding(vertical = 8.dp, horizontal = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AthenaBookCover(book, Modifier.width(52.dp).height(72.dp))
+                    Spacer(Modifier.width(13.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(book.title, color = ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(book.author.ifBlank { "Unknown author" }, color = muted, fontSize = 11.sp)
+                        Text("${book.status} · ${if (book.fileUri.isNotBlank()) "Digital" else book.ownership}", color = muted, fontSize = 10.sp)
+                        if (book.progress > 0) LinearProgressIndicator(progress = { book.progress.coerceIn(0, 100) / 100f }, modifier = Modifier.fillMaxWidth(.75f).height(3.dp), color = Color(0xFF66816B), trackColor = Color(0xFFE5E5DE))
+                    }
+                    IconButton(onClick = { onFavorite(book) }) { Icon(if (book.favorite) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder, "Toggle favourite", tint = if (book.favorite) Color(0xFF9B4B45) else muted) }
+                    IconButton(onClick = { onEdit(book) }) { Icon(Icons.Rounded.MoreHoriz, "Book options", tint = muted) }
+                }
+                HorizontalDivider(color = Color(0xFFE8E7E1))
             }
         }
     }
