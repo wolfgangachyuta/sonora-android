@@ -300,6 +300,13 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
         onDispose { player.removeListener(listener) }
     }
 
+    LaunchedEffect(currentTrack) {
+        val active = currentTrack
+        lyricLines = if (active == null || active.filePath.isBlank()) emptyList() else withContext(Dispatchers.IO) {
+            LyricsRepository.siblingLrc(active.filePath)?.let { file -> runCatching { LyricsRepository.parseLrc(file.readText()) }.getOrNull() }.orEmpty()
+        }
+    }
+
     LaunchedEffect(playbackSpeed, player) {
         player.setPlaybackParameters(androidx.media3.common.PlaybackParameters(playbackSpeed, 1f))
         preferences.edit().putFloat("playback_speed", playbackSpeed).apply()
