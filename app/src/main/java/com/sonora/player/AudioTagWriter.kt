@@ -35,7 +35,7 @@ object AudioTagWriter {
             working.copyTo(original, overwrite = true)
 
             val audioFile = AudioFileIO.read(working)
-            val tag = audioFile.tagOrCreateAndSetDefault()
+            val tag = audioFile.getTagOrCreateAndSetDefault()
             setOrRemove(tag, FieldKey.TITLE, metadata.title)
             setOrRemove(tag, FieldKey.ARTIST, metadata.artist)
             setOrRemove(tag, FieldKey.ALBUM, metadata.album)
