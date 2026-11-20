@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.speech.tts.TextToSpeech
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -773,6 +774,11 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
     var ocrText by remember { mutableStateOf("") }
     var ocrError by remember { mutableStateOf("") }
     var showOcr by remember { mutableStateOf(false) }
+    var ttsReady by remember { mutableStateOf(false) }
+    val textToSpeech = remember {
+        TextToSpeech(context) { status -> ttsReady = status == TextToSpeech.SUCCESS }
+    }
+    DisposableEffect(textToSpeech) { onDispose { textToSpeech.stop(); textToSpeech.shutdown() } }
     val sessionStartedAt = remember(book.id) { System.currentTimeMillis() }
 
     LaunchedEffect(book.id, showBookmarks) {
@@ -888,6 +894,10 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                     savedBookmarks = dao.bookmarks(book.id)
                 }
             }) { Icon(Icons.Rounded.BookmarkAdd, "Save bookmark", tint = readerForeground) }
+            IconButton(onClick = {
+                val spoken = if (ext == "pdf") ocrText else content.replace(Regex("<[^>]+>"), " ").replace(Regex("\\s+"), " ")
+                if (spoken.isNotBlank()) textToSpeech.speak(spoken, TextToSpeech.QUEUE_FLUSH, null, "athenaeum-reader")
+            }, enabled = ttsReady) { Icon(Icons.Rounded.VolumeUp, "Read this book aloud", tint = readerForeground) }
             IconButton(onClick = { textSize = (textSize + 1f).coerceAtMost(30f) }) { Icon(Icons.Rounded.TextIncrease, "Increase text size", tint = readerForeground) }
         }
         if (ext == "pdf" && bitmap != null) {
