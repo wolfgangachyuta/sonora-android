@@ -28,7 +28,8 @@ fun NowPlayingOverlay(
     onToggle: () -> Unit, onPrevious: () -> Unit, onNext: () -> Unit, onSeek: (Long) -> Unit,
     onClose: () -> Unit, shuffle: Boolean, onShuffle: (Boolean) -> Unit, repeat: Int, onRepeat: (Int) -> Unit,
     favorite: Boolean, onFavorite: () -> Unit, onLyrics: () -> Unit,
-    onMetadata: () -> Unit, onEqualizer: () -> Unit
+    onMetadata: () -> Unit, onEqualizer: () -> Unit,
+    sleepMinutes: Int?, onSleepTimer: (Int?) -> Unit
 ) {
     val safeDuration = duration.coerceAtLeast(1L)
     val progress = position.coerceIn(0L, safeDuration)
@@ -37,6 +38,7 @@ fun NowPlayingOverlay(
     val secondary = if (dark) Color(0xFFA8AAA5) else Color(0xFF777B75)
     val accent = if (dark) Color(0xFFE7A6A0) else Color(0xFF9D3B35)
     val artworkShape = RoundedCornerShape(30.dp)
+    var showSleepTimer by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
 
     Surface(Modifier.fillMaxSize(), color = backdrop, contentColor = foreground) {
         Box(Modifier.fillMaxSize()) {
@@ -182,8 +184,34 @@ fun NowPlayingOverlay(
                     Spacer(Modifier.width(8.dp))
                     Text("EDIT TRACK INFORMATION", fontSize = 9.sp, letterSpacing = 1.sp)
                 }
+                Spacer(Modifier.height(12.dp))
+                OutlinedButton(onClick = { showSleepTimer = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = foreground)) {
+                    Icon(Icons.Rounded.Bedtime, null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (sleepMinutes == null) "SLEEP TIMER" else "SLEEP TIMER · ${sleepMinutes} MIN LEFT", fontSize = 9.sp, letterSpacing = 1.sp)
+                }
                 Spacer(Modifier.height(24.dp))
             }
         }
+    }
+    if (showSleepTimer) {
+        AlertDialog(
+            onDismissRequest = { showSleepTimer = false },
+            title = { Text("Sleep timer", fontWeight = FontWeight.SemiBold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Pause playback automatically after a little while.", color = secondary, fontSize = 12.sp)
+                    listOf(15, 30, 45, 60, 90).forEach { minutes ->
+                        TextButton(onClick = { onSleepTimer(minutes); showSleepTimer = false }, modifier = Modifier.fillMaxWidth()) {
+                            Text("$minutes minutes", color = foreground)
+                        }
+                    }
+                    if (sleepMinutes != null) TextButton(onClick = { onSleepTimer(null); showSleepTimer = false }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Cancel active timer", color = accent)
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showSleepTimer = false }) { Text("CLOSE") } }
+        )
     }
 }
