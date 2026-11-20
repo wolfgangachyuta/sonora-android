@@ -318,6 +318,10 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
                     playCounts = playCounts.toMutableMap().apply { put(t.id.toString(), (get(t.id.toString()) ?: 0) + 1) }
                     preferences.edit().putString("play_counts", playCounts.entries.joinToString(",") { "${it.key}:${it.value}" }).putInt("queue_index", player.currentMediaItemIndex).apply()
                     libraryScope.launch {
+                        val ids = (0 until player.mediaItemCount).map { player.getMediaItemAt(it).mediaId }
+                        if (ids.isNotEmpty()) sonoraDao.saveQueue(SonoraQueueSnapshot(trackIds = ids.joinToString(","), currentIndex = player.currentMediaItemIndex, positionMs = player.currentPosition.coerceAtLeast(0L)))
+                    }
+                    libraryScope.launch {
                         sonoraDao.recordPlay(SonoraPlayEvent(trackId = t.id.toString()))
                         playEvents = sonoraDao.recentHistory()
                     }
@@ -370,19 +374,31 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
     }
 
     LaunchedEffect(tracks, player, roomReady) {
-        if (roomReady && tracks.isNotEmpty() && !queueRestored && player.mediaItemCount == 0) {
-            val snapshot = sonoraDao.queueSnapshot()
-            val storedIds = preferences.getString("queue_ids", "").orEmpty().ifBlank { snapshot?.trackIds.orEmpty() }
-            val savedIds = storedIds.split(",").filter { it.isNotBlank() }
-            val savedQueue = savedIds.mapNotNull { id -> tracks.firstOrNull { it.id.toString() == id } }
-            if (savedQueue.isNotEmpty()) {
-                val startIndex = (snapshot?.currentIndex ?: preferences.getInt("queue_index", 0)).coerceIn(0, savedQueue.lastIndex)
-                val position = snapshot?.positionMs ?: 0L
-                player.setMediaItems(savedQueue.map { MediaItem.Builder().setUri(it.uri).setMediaId(it.id.toString()).setMediaMetadata(MediaMetadata.Builder().setTitle(it.title).setArtist(it.artist).setAlbumTitle(it.album).setArtworkUri(Uri.parse("content://media/external/audio/albumart/${it.albumId}")).build()).build() }, startIndex, position)
-                player.prepare()
-                currentTrack = savedQueue[startIndex]
+        if (roomReady && tracks.isNotEmpty() && !queueRestored) {
+            if (player.mediaItemCount > 0) {
+                currentTrack = tracks.firstOrNull { it.id.toString() == player.currentMediaItem?.mediaId }
+            } else {
+                val snapshot = sonoraDao.queueSnapshot()
+                val storedIds = preferences.getString("queue_ids", "").orEmpty().ifBlank { snapshot?.trackIds.orEmpty() }
+                val savedIds = storedIds.split(",").filter { it.isNotBlank() }
+                val savedQueue = savedIds.mapNotNull { id -> tracks.firstOrNull { it.id.toString() == id } }
+                if (savedQueue.isNotEmpty()) {
+                    val startIndex = (snapshot?.currentIndex ?: preferences.getInt("queue_index", 0)).coerceIn(0, savedQueue.lastIndex)
+                    val position = snapshot?.positionMs ?: 0L
+                    player.setMediaItems(savedQueue.map { MediaItem.Builder().setUri(it.uri).setMediaId(it.id.toString()).setMediaMetadata(MediaMetadata.Builder().setTitle(it.title).setArtist(it.artist).setAlbumTitle(it.album).setArtworkUri(Uri.parse("content://media/external/audio/albumart/${it.albumId}")).build()).build() }, startIndex, position)
+                    player.prepare()
+                    currentTrack = savedQueue[startIndex]
+                }
             }
             queueRestored = true
+        }
+    }
+
+    LaunchedEffect(currentTrack, isPlaying, player) {
+        while (currentTrack != null && isPlaying) {
+            delay(5_000)
+            val ids = (0 until player.mediaItemCount).map { player.getMediaItemAt(it).mediaId }
+            if (ids.isNotEmpty()) sonoraDao.saveQueue(SonoraQueueSnapshot(trackIds = ids.joinToString(","), currentIndex = player.currentMediaItemIndex, positionMs = player.currentPosition.coerceAtLeast(0L)))
         }
     }
 
