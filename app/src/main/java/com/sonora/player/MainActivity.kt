@@ -496,6 +496,16 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
                         }, { playlistId, trackId ->
                             playlists = playlists.map { p -> if (p.id == playlistId) p.copy(trackIds = p.trackIds.filterNot { it == trackId }) else p }
                             persistPlaylists()
+                        }, { playlistId, trackId, targetIndex ->
+                            playlists = playlists.map { playlist ->
+                                if (playlist.id != playlistId) playlist else {
+                                    val ids = playlist.trackIds.toMutableList()
+                                    val from = ids.indexOf(trackId)
+                                    if (from >= 0 && targetIndex in ids.indices) ids.add(targetIndex, ids.removeAt(from))
+                                    playlist.copy(trackIds = ids)
+                                }
+                            }
+                            persistPlaylists()
                         }, { playlistId, newName ->
                             val clean = newName.trim()
                             if (clean.isNotEmpty() && playlists.none { it.id != playlistId && it.name.equals(clean, true) }) {
@@ -759,6 +769,7 @@ private fun PlaylistsPage(
     onDelete: (String) -> Unit,
     onPopulate: (String, List<String>) -> Unit,
     onRemoveTrack: (String, String) -> Unit,
+    onMoveTrack: (String, String, Int) -> Unit,
     onRename: (String, String) -> Unit,
     onPlay: (LocalPlaylist) -> Unit
 ) {
@@ -798,10 +809,12 @@ private fun PlaylistsPage(
                 }
                 IconButton(onClick = { onPlay(playlist) }) { Icon(Icons.Rounded.PlayArrow, "Play playlist", tint = ink) }
             }
-            contained.forEach { song ->
+            contained.forEachIndexed { index, song ->
                 Row(Modifier.fillMaxWidth().padding(start = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(song.title, Modifier.weight(1f), fontSize = 10.sp, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    IconButton(onClick = { onRemoveTrack(playlist.id, song.id.toString()) }, modifier = Modifier.size(30.dp)) { Icon(Icons.Rounded.Close, "Remove song", tint = muted, modifier = Modifier.size(14.dp)) }
+                    IconButton(onClick = { if (index > 0) onMoveTrack(playlist.id, song.id.toString(), index - 1) }, enabled = index > 0, modifier = Modifier.size(28.dp)) { Icon(Icons.Rounded.KeyboardArrowUp, "Move track up", tint = muted, modifier = Modifier.size(16.dp)) }
+                    IconButton(onClick = { if (index < contained.lastIndex) onMoveTrack(playlist.id, song.id.toString(), index + 1) }, enabled = index < contained.lastIndex, modifier = Modifier.size(28.dp)) { Icon(Icons.Rounded.KeyboardArrowDown, "Move track down", tint = muted, modifier = Modifier.size(16.dp)) }
+                    IconButton(onClick = { onRemoveTrack(playlist.id, song.id.toString()) }, modifier = Modifier.size(28.dp)) { Icon(Icons.Rounded.Close, "Remove song", tint = muted, modifier = Modifier.size(14.dp)) }
                 }
             }
         }
