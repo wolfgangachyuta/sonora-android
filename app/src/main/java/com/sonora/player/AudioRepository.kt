@@ -11,7 +11,12 @@ data class AudioTrack(
     val album: String,
     val durationMs: Long,
     val uri: String,
-    val albumId: Long
+    val albumId: Long,
+    val albumArtist: String = "",
+    val composer: String = "",
+    val year: Int = 0,
+    val trackNumber: Int = 0,
+    val discNumber: Int = 0
 )
 
 class AudioRepository(private val context: Context) {
@@ -23,7 +28,12 @@ class AudioRepository(private val context: Context) {
             MediaStore.Audio.Media.ARTIST,
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.DURATION,
-            MediaStore.Audio.Media.ALBUM_ID
+            MediaStore.Audio.Media.ALBUM_ID,
+            MediaStore.Audio.Media.ALBUM_ARTIST,
+            MediaStore.Audio.Media.COMPOSER,
+            MediaStore.Audio.Media.YEAR,
+            MediaStore.Audio.Media.TRACK,
+            "disc_number"
         )
         val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
         val sortOrder = "${MediaStore.Audio.Media.TITLE} COLLATE NOCASE ASC"
@@ -36,6 +46,11 @@ class AudioRepository(private val context: Context) {
             val albumCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
             val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
             val albumIdCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
+            val albumArtistCol = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM_ARTIST)
+            val composerCol = cursor.getColumnIndex(MediaStore.Audio.Media.COMPOSER)
+            val yearCol = cursor.getColumnIndex(MediaStore.Audio.Media.YEAR)
+            val trackCol = cursor.getColumnIndex(MediaStore.Audio.Media.TRACK)
+            val discCol = cursor.getColumnIndex("disc_number")
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idCol)
@@ -46,7 +61,12 @@ class AudioRepository(private val context: Context) {
                     album = cursor.getString(albumCol)?.takeUnless { it == "<unknown>" } ?: "Unknown album",
                     durationMs = cursor.getLong(durationCol),
                     uri = ContentUris.withAppendedId(collection, id).toString(),
-                    albumId = cursor.getLong(albumIdCol)
+                    albumId = cursor.getLong(albumIdCol),
+                    albumArtist = if (albumArtistCol >= 0) cursor.getString(albumArtistCol).orEmpty() else "",
+                    composer = if (composerCol >= 0) cursor.getString(composerCol).orEmpty() else "",
+                    year = if (yearCol >= 0) cursor.getInt(yearCol) else 0,
+                    trackNumber = if (trackCol >= 0) cursor.getInt(trackCol) else 0,
+                    discNumber = if (discCol >= 0) cursor.getInt(discCol) else 0
                 )
             }
         }
