@@ -17,10 +17,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -50,7 +49,7 @@ fun AudioVisualizerPage(audioSessionId: Int, ink: Color, panel: Color, muted: Co
                     override fun onWaveFormDataCapture(visualizer: Visualizer?, waveform: ByteArray?, samplingRate: Int) = Unit
                     override fun onFftDataCapture(visualizer: Visualizer?, fft: ByteArray?, samplingRate: Int) {
                         val data = fft ?: return
-                        val values = (0 until levels.size).map { index ->
+                        val values = (0 until 48).map { index ->
                             val bin = 2 + index * 2
                             val real = data.getOrNull(bin)?.toInt()?.and(0xFF) ?: 0
                             val imag = data.getOrNull(bin + 1)?.toInt()?.and(0xFF) ?: 0
