@@ -23,6 +23,18 @@
             </intent-filter>
         </service>
         <service android:name=".SonoraFetchService" android:exported="false" android:foregroundServiceType="dataSync" />
+        <receiver android:name=".AthenaeumContinueWidgetProvider" android:exported="true">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/athenaeum_continue_widget" />
+        </receiver>
+        <receiver android:name=".AthenaeumOverviewWidgetProvider" android:exported="true">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/athenaeum_overview_widget" />
+        </receiver>
+        <receiver android:name=".AthenaeumRandomWidgetProvider" android:exported="true">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/athenaeum_random_widget" />
+        </receiver>
         <activity
             android:name=".MainActivity"
             android:exported="true">
