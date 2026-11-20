@@ -245,6 +245,22 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
                 Icon(Icons.Rounded.Add, "Add book")
             }
         }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("YEARLY READING GOAL", color = Color(0xFF77766F), fontSize = 9.sp, letterSpacing = 1.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.weight(1f))
+            Text("${books.count { it.status == "Finished" }} / $readingGoal books", color = Color(0xFF55564F), fontSize = 10.sp)
+            IconButton(onClick = { readingGoal = (readingGoal - 1).coerceAtLeast(1); preferences.edit().putInt("reading_goal_books", readingGoal).apply() }, modifier = Modifier.size(28.dp)) {
+                Icon(Icons.Rounded.Remove, "Decrease reading goal", tint = Color(0xFF55564F), modifier = Modifier.size(15.dp))
+            }
+            IconButton(onClick = { readingGoal = (readingGoal + 1).coerceAtMost(200); preferences.edit().putInt("reading_goal_books", readingGoal).apply() }, modifier = Modifier.size(28.dp)) {
+                Icon(Icons.Rounded.Add, "Increase reading goal", tint = Color(0xFF55564F), modifier = Modifier.size(15.dp))
+            }
+        }
+        LinearProgressIndicator(
+            progress = { (books.count { it.status == "Finished" }.toFloat() / readingGoal).coerceIn(0f, 1f) },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp).height(3.dp).clip(RoundedCornerShape(3.dp)),
+            color = Color(0xFF66816B), trackColor = Color(0xFFE5E5DE)
+        )
 
         if (currentlyReading.isNotEmpty()) {
             Column(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp)) {
@@ -665,32 +681,35 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
         }
     }
 
-    Column(Modifier.fillMaxSize().background(if (dark) AthenaCharcoal else AthenaParchment)) {
-        Row(Modifier.fillMaxWidth().background(AthenaWalnut).padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onClose) { Icon(Icons.Rounded.ArrowBack, "Close reader", tint = AthenaIvory) }
+    val readerBackground = if (dark) Color(0xFF171916) else Color(0xFFF7F6F1)
+    val readerForeground = if (dark) Color(0xFFECEDE7) else Color(0xFF252722)
+    val readerBar = if (dark) Color(0xFF22251F) else Color.White
+    Column(Modifier.fillMaxSize().background(readerBackground)) {
+        Row(Modifier.fillMaxWidth().background(readerBar).padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onClose) { Icon(Icons.Rounded.ArrowBack, "Close reader", tint = readerForeground) }
             Column(Modifier.weight(1f)) {
-                Text(book.title, color = AthenaIvory, fontFamily = FontFamily.Serif, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(book.author, color = AthenaGold, fontSize = 10.sp)
+                Text(book.title, color = readerForeground, fontFamily = FontFamily.Serif, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(book.author, color = if (dark) Color(0xFFB9C7B4) else Color(0xFF6D7968), fontSize = 10.sp)
             }
-            IconButton(onClick = { dark = !dark }) { Icon(Icons.Rounded.Contrast, "Toggle reading theme", tint = AthenaGold) }
-            IconButton(onClick = { showBookmarks = true }) { Icon(Icons.Rounded.Bookmarks, "Bookmarks", tint = AthenaGold) }
+            IconButton(onClick = { dark = !dark }) { Icon(Icons.Rounded.Contrast, "Toggle reading theme", tint = readerForeground) }
+            IconButton(onClick = { showBookmarks = true }) { Icon(Icons.Rounded.Bookmarks, "Bookmarks", tint = readerForeground) }
             IconButton(onClick = {
                 scope.launch {
                     val location = if (ext == "pdf") page else if (ext == "txt") textScroll.value else readerWebView?.scrollY ?: 0
                     dao.addBookmark(AthenaeumBookmark(bookId = book.id, location = location, label = if (ext == "pdf") "Page ${page + 1}" else "Position $location"))
                     savedBookmarks = dao.bookmarks(book.id)
                 }
-            }) { Icon(Icons.Rounded.BookmarkAdd, "Save bookmark", tint = AthenaGold) }
-            IconButton(onClick = { textSize = (textSize + 1f).coerceAtMost(30f) }) { Icon(Icons.Rounded.TextIncrease, "Increase text size", tint = AthenaGold) }
+            }) { Icon(Icons.Rounded.BookmarkAdd, "Save bookmark", tint = readerForeground) }
+            IconButton(onClick = { textSize = (textSize + 1f).coerceAtMost(30f) }) { Icon(Icons.Rounded.TextIncrease, "Increase text size", tint = readerForeground) }
         }
         if (ext == "pdf" && bitmap != null) {
             Box(Modifier.weight(1f).fillMaxWidth().padding(8.dp), contentAlignment = Alignment.Center) {
                 Image(bitmap!!.asImageBitmap(), contentDescription = "PDF page ${page + 1}", modifier = Modifier.fillMaxSize())
             }
-            Row(Modifier.fillMaxWidth().background(AthenaWalnut).padding(8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { if (page > 0) page-- }, enabled = page > 0) { Text("PREVIOUS", color = AthenaGold) }
-                Text("${page + 1} / ${pageCount}", color = AthenaIvory)
-                TextButton(onClick = { if (page < pageCount - 1) page++ }, enabled = page < pageCount - 1) { Text("NEXT", color = AthenaGold) }
+            Row(Modifier.fillMaxWidth().background(readerBar).padding(8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { if (page > 0) page-- }, enabled = page > 0) { Text("PREVIOUS", color = readerForeground) }
+                Text("${page + 1} / ${pageCount}", color = readerForeground)
+                TextButton(onClick = { if (page < pageCount - 1) page++ }, enabled = page < pageCount - 1) { Text("NEXT", color = readerForeground) }
             }
             LaunchedEffect(page) {
                 withContext(Dispatchers.IO) {
@@ -714,7 +733,7 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                         view?.scrollTo(0, book.lastLocation.coerceAtLeast(0))
                     }
                 }
-                setBackgroundColor(if (dark) android.graphics.Color.DKGRAY else android.graphics.Color.rgb(233, 222, 198))
+                setBackgroundColor(if (dark) android.graphics.Color.rgb(23, 25, 22) else android.graphics.Color.rgb(247, 246, 241))
                 tag = content
                 readerWebView = this
                 loadDataWithBaseURL(null, content, "text/html", "UTF-8", null)
@@ -725,12 +744,12 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
             }, modifier = Modifier.weight(1f).fillMaxWidth())
             Text("EPUB / HTML reader · adjustable theme and library position", color = if (dark) AthenaParchment else AthenaWalnut, fontSize = 10.sp, modifier = Modifier.padding(12.dp))
         } else {
-            Text(content, color = if (dark) AthenaParchment else AthenaCharcoal, fontSize = textSize.sp, lineHeight = (textSize * 1.55f).sp,
+            Text(content, color = readerForeground, fontSize = textSize.sp, lineHeight = (textSize * 1.55f).sp,
                 modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(textScroll).padding(horizontal = 24.dp, vertical = 22.dp))
-            Row(Modifier.fillMaxWidth().background(AthenaWalnut).padding(10.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                TextButton(onClick = { textSize = (textSize - 1f).coerceAtLeast(12f) }) { Text("A−", color = AthenaGold) }
-                TextButton(onClick = { textSize = (textSize + 1f).coerceAtMost(30f) }) { Text("A+", color = AthenaGold) }
-                TextButton(onClick = { scope.launch { dao.updateProgress(book.id, if (textScroll.maxValue > 0) (textScroll.value * 100 / textScroll.maxValue).coerceIn(0, 100) else 0, textScroll.value) } }) { Text("SAVE POSITION", color = AthenaGold) }
+            Row(Modifier.fillMaxWidth().background(readerBar).padding(10.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                TextButton(onClick = { textSize = (textSize - 1f).coerceAtLeast(12f) }) { Text("A−", color = readerForeground) }
+                TextButton(onClick = { textSize = (textSize + 1f).coerceAtMost(30f) }) { Text("A+", color = readerForeground) }
+                TextButton(onClick = { scope.launch { dao.updateProgress(book.id, if (textScroll.maxValue > 0) (textScroll.value * 100 / textScroll.maxValue).coerceIn(0, 100) else 0, textScroll.value) } }) { Text("SAVE POSITION", color = readerForeground) }
             }
         }
     }
