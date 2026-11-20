@@ -130,6 +130,7 @@ private fun SonoraApp() {
     var playCounts by remember { mutableStateOf(preferences.getString("play_counts", "").orEmpty().split(",").filter { it.contains(":") }.associate { it.substringBefore(":") to (it.substringAfter(":").toIntOrNull() ?: 0) }) }
     var shuffle by remember { mutableStateOf(false) }
     var repeatMode by remember { mutableStateOf(Player.REPEAT_MODE_OFF) }
+    var sleepTimerMinutes by remember { mutableStateOf<Int?>(null) }
     var playlists by remember { mutableStateOf(PlaylistStore(context).load()) }
     var lyricLines by remember { mutableStateOf(emptyList<LyricLine>()) }
     val fetchStatus by SonoraFetch.status.collectAsState()
@@ -264,6 +265,13 @@ private fun SonoraApp() {
         onDispose { player.removeListener(listener) }
     }
 
+    LaunchedEffect(sleepTimerMinutes) {
+        val minutes = sleepTimerMinutes ?: return@LaunchedEffect
+        delay(minutes * 60_000L)
+        player.pause()
+        sleepTimerMinutes = null
+    }
+
     LaunchedEffect(currentTrack, isPlaying) {
         while (currentTrack != null) {
             positionMs = player.currentPosition.coerceAtLeast(0L)
@@ -354,7 +362,7 @@ private fun SonoraApp() {
                 BottomNav(tab, ink, muted) { tab = it }
             }
             if (tab == "Now Playing" && currentTrack != null) {
-                NowPlayingOverlay(currentTrack!!, isPlaying, positionMs, player.duration.takeIf { it > 0 } ?: currentTrack!!.durationMs, ink, paper, panel, muted, darkMode, { if (player.isPlaying) player.pause() else player.play() }, { player.seekToPreviousMediaItem() }, { player.seekToNextMediaItem() }, { player.seekTo(it) }, { tab = "Listen" }, shuffle, { shuffle = it; player.shuffleModeEnabled = it }, repeatMode, { repeatMode = it; player.repeatMode = it }, currentTrack!!.id.toString() in favorites, { toggleFavorite(currentTrack!!) }, { tab = "Lyrics" }, { editingTrack = currentTrack }, { tab = "Equalizer" })
+                NowPlayingOverlay(currentTrack!!, isPlaying, positionMs, player.duration.takeIf { it > 0 } ?: currentTrack!!.durationMs, ink, paper, panel, muted, darkMode, { if (player.isPlaying) player.pause() else player.play() }, { player.seekToPreviousMediaItem() }, { player.seekToNextMediaItem() }, { player.seekTo(it) }, { tab = "Listen" }, shuffle, { shuffle = it; player.shuffleModeEnabled = it }, repeatMode, { repeatMode = it; player.repeatMode = it }, currentTrack!!.id.toString() in favorites, { toggleFavorite(currentTrack!!) }, { tab = "Lyrics" }, { editingTrack = currentTrack }, { tab = "Equalizer" }, sleepTimerMinutes, { sleepTimerMinutes = it })
             }
             editingTrack?.let { track ->
                 TrackMetadataEditor(track, onDismiss = { editingTrack = null }, onSave = { metadata ->
