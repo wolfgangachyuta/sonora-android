@@ -48,7 +48,7 @@ The repository currently ships one Android package containing two connected expe
 - [x] Optional ISBN metadata lookup using Google Books.
 - [x] Dedicated Athenaeum launcher entry and icon, separate from the SONORA launcher entry within the same APK.
 - [x] EPUB package metadata and cover-image extraction during import.
-- [x] Three Android home-screen widgets: Continue Reading, library overview and random pick.
+- [x] Four Android home-screen widgets: Continue Reading, library overview, random pick and favourites.
 
 ### Reader
 - [x] PDF, TXT, HTML, FB2, EPUB 2/3 (OPF manifest/spine and NCX/EPUB3 TOC), legacy PalmDOC MOBI 6, RTF, Markdown and CBZ.
