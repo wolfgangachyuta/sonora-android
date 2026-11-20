@@ -395,12 +395,13 @@ private fun FeatureCard(current: AudioTrack?, playing: Boolean, ink: Color, pane
                 Spacer(Modifier.height(15.dp))
                 Button(
                     onClick = { current?.let(onPlay) ?: onScan() },
+                    enabled = current == null || !playing,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE9B6A8), contentColor = Color(0xFF17201D)),
                     shape = RoundedCornerShape(50)
                 ) {
                     Icon(Icons.Rounded.PlayArrow, null, modifier = Modifier.size(17.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text(if (current == null) "DISCOVER" else if (playing) "PLAY AGAIN" else "PLAY NOW",
+                    Text(if (current == null) "DISCOVER" else if (playing) "PLAYING" else "PLAY NOW",
                         fontSize = 9.sp, letterSpacing = 1.sp)
                 }
             }
