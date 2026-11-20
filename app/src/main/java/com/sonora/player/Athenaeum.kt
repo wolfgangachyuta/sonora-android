@@ -147,9 +147,28 @@ interface AthenaeumDao {
     suspend fun bookmarks(bookId: Long): List<AthenaeumBookmark>
     @Delete
     suspend fun deleteBookmark(bookmark: AthenaeumBookmark)
+
+    @Insert
+    suspend fun addAnnotation(annotation: AthenaeumAnnotation)
+    @Query("SELECT * FROM athenaeum_annotations ORDER BY createdAt DESC")
+    fun observeAnnotations(): Flow<List<AthenaeumAnnotation>>
+    @Delete
+    suspend fun deleteAnnotation(annotation: AthenaeumAnnotation)
+
+    @Insert
+    suspend fun addCommonplace(entry: AthenaeumCommonplaceEntry)
+    @Query("SELECT * FROM athenaeum_commonplace ORDER BY createdAt DESC")
+    fun observeCommonplace(): Flow<List<AthenaeumCommonplaceEntry>>
+    @Delete
+    suspend fun deleteCommonplace(entry: AthenaeumCommonplaceEntry)
+
+    @Insert
+    suspend fun addReadingSession(session: AthenaeumReadingSession)
+    @Query("SELECT * FROM athenaeum_reading_sessions ORDER BY startedAt DESC")
+    fun observeReadingSessions(): Flow<List<AthenaeumReadingSession>>
 }
 
-@Database(entities = [AthenaeumBook::class, AthenaeumShelf::class, AthenaeumBookShelf::class, AthenaeumBookmark::class], version = 2, exportSchema = false)
+@Database(entities = [AthenaeumBook::class, AthenaeumShelf::class, AthenaeumBookShelf::class, AthenaeumBookmark::class, AthenaeumAnnotation::class, AthenaeumCommonplaceEntry::class, AthenaeumReadingSession::class], version = 3, exportSchema = false)
 abstract class AthenaeumDatabase : RoomDatabase() {
     abstract fun dao(): AthenaeumDao
     companion object {
@@ -160,9 +179,19 @@ abstract class AthenaeumDatabase : RoomDatabase() {
                 database.execSQL("CREATE INDEX IF NOT EXISTS index_athenaeum_bookmarks_bookId ON athenaeum_bookmarks(bookId)")
             }
         }
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("CREATE TABLE IF NOT EXISTS athenaeum_annotations (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, bookId INTEGER NOT NULL, location INTEGER NOT NULL, quote TEXT NOT NULL, note TEXT NOT NULL, color TEXT NOT NULL, createdAt INTEGER NOT NULL, FOREIGN KEY(bookId) REFERENCES athenaeum_books(id) ON UPDATE NO ACTION ON DELETE CASCADE)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_athenaeum_annotations_bookId ON athenaeum_annotations(bookId)")
+                database.execSQL("CREATE TABLE IF NOT EXISTS athenaeum_commonplace (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, bookId INTEGER, source TEXT NOT NULL, quote TEXT NOT NULL, reflection TEXT NOT NULL, tags TEXT NOT NULL, createdAt INTEGER NOT NULL, FOREIGN KEY(bookId) REFERENCES athenaeum_books(id) ON UPDATE NO ACTION ON DELETE SET NULL)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_athenaeum_commonplace_bookId ON athenaeum_commonplace(bookId)")
+                database.execSQL("CREATE TABLE IF NOT EXISTS athenaeum_reading_sessions (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, bookId INTEGER NOT NULL, startedAt INTEGER NOT NULL, durationMinutes INTEGER NOT NULL, pagesRead INTEGER NOT NULL, FOREIGN KEY(bookId) REFERENCES athenaeum_books(id) ON UPDATE NO ACTION ON DELETE CASCADE)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_athenaeum_reading_sessions_bookId ON athenaeum_reading_sessions(bookId)")
+            }
+        }
         fun get(context: Context): AthenaeumDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, AthenaeumDatabase::class.java, "athenaeum.db")
-                .addMigrations(MIGRATION_1_2).build().also { instance = it }
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
         }
     }
 }
@@ -188,6 +217,7 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
     var gridMode by remember { mutableStateOf(preferences.getBoolean("grid_mode", true)) }
     var sortBy by remember { mutableStateOf(preferences.getString("sort_books_by", "Recently added") ?: "Recently added") }
     var showSort by remember { mutableStateOf(false) }
+    var showArchive by remember { mutableStateOf(false) }
 
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         uris.forEach { uri ->
@@ -237,6 +267,7 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
                 Text("Books", color = Color(0xFF20211F), fontSize = 30.sp, fontWeight = FontWeight.SemiBold)
                 Text("${books.size} books in your collection", color = Color(0xFF77766F), fontSize = 12.sp)
             }
+            IconButton(onClick = { showArchive = true }) { Icon(Icons.Rounded.AutoStories, "Open Commonplace Book and reading archive", tint = Color(0xFF454640)) }
             IconButton(onClick = onBack) { Icon(Icons.Rounded.Close, "Close Athenaeum", tint = Color(0xFF454640)) }
             IconButton(onClick = { importLauncher.launch(arrayOf("application/epub+zip", "application/pdf", "text/plain", "text/html", "application/x-fictionbook+xml", "application/octet-stream")) }) {
                 Icon(Icons.Rounded.FileOpen, "Import books", tint = Color(0xFF30312D))
@@ -417,6 +448,7 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
         )
     }
     if (message.isNotBlank()) AlertDialog(onDismissRequest = { message = "" }, title = { Text("Import notice") }, text = { Text(message) }, confirmButton = { TextButton(onClick = { message = "" }) { Text("OK") } })
+    if (showArchive) AthenaeumArchivePanel(dao, books, onClose = { showArchive = false })
     reading?.let { book ->
         Dialog(onDismissRequest = { reading = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             Surface(Modifier.fillMaxSize(), color = Color(0xFFF6F3EC)) {
@@ -632,9 +664,20 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
     var readerWebView by remember { mutableStateOf<WebView?>(null) }
     var showBookmarks by remember { mutableStateOf(false) }
     var savedBookmarks by remember(book.id) { mutableStateOf(emptyList<AthenaeumBookmark>()) }
+    var showAnnotationEditor by remember { mutableStateOf(false) }
+    var annotationQuote by remember { mutableStateOf("") }
+    var annotationNote by remember { mutableStateOf("") }
+    val sessionStartedAt = remember(book.id) { System.currentTimeMillis() }
 
     LaunchedEffect(book.id, showBookmarks) {
         if (showBookmarks) savedBookmarks = dao.bookmarks(book.id)
+    }
+
+    DisposableEffect(book.id) {
+        onDispose {
+            val elapsed = ((System.currentTimeMillis() - sessionStartedAt) / 60_000L).toInt().coerceAtLeast(1)
+            scope.launch { dao.addReadingSession(AthenaeumReadingSession(bookId = book.id, startedAt = sessionStartedAt, durationMinutes = elapsed, pagesRead = if (ext == "pdf") (page + 1).coerceAtLeast(0) else 0)) }
+        }
     }
 
     DisposableEffect(readerWebView) {
@@ -716,6 +759,7 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
             }
             IconButton(onClick = { dark = !dark }) { Icon(Icons.Rounded.Contrast, "Toggle reading theme", tint = readerForeground) }
             IconButton(onClick = { showBookmarks = true }) { Icon(Icons.Rounded.Bookmarks, "Bookmarks", tint = readerForeground) }
+            IconButton(onClick = { annotationQuote = ""; annotationNote = ""; showAnnotationEditor = true }) { Icon(Icons.Rounded.Highlight, "Add highlight or annotation", tint = readerForeground) }
             IconButton(onClick = {
                 scope.launch {
                     val location = if (ext == "pdf") page else if (ext == "txt") textScroll.value else readerWebView?.scrollY ?: 0
@@ -775,6 +819,26 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                 TextButton(onClick = { scope.launch { dao.updateProgress(book.id, if (textScroll.maxValue > 0) (textScroll.value * 100 / textScroll.maxValue).coerceIn(0, 100) else 0, textScroll.value) } }) { Text("SAVE POSITION", color = readerForeground) }
             }
         }
+    }
+    if (showAnnotationEditor) {
+        AlertDialog(
+            onDismissRequest = { showAnnotationEditor = false },
+            title = { Text("Add to your archive") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Save a passage and your own note. Copy the passage into the first field.", color = readerForeground, fontSize = 12.sp)
+                    OutlinedTextField(annotationQuote, { annotationQuote = it }, label = { Text("Passage / quotation") }, minLines = 2)
+                    OutlinedTextField(annotationNote, { annotationNote = it }, label = { Text("Your note (optional)") }, minLines = 2)
+                }
+            },
+            confirmButton = { TextButton(onClick = {
+                if (annotationQuote.isNotBlank()) scope.launch {
+                    dao.addAnnotation(AthenaeumAnnotation(bookId = book.id, location = if (ext == "pdf") page else if (ext == "txt") textScroll.value else readerWebView?.scrollY ?: 0, quote = annotationQuote.trim(), note = annotationNote.trim()))
+                }
+                showAnnotationEditor = false
+            }) { Text("SAVE") } },
+            dismissButton = { TextButton(onClick = { showAnnotationEditor = false }) { Text("CANCEL") } }
+        )
     }
     if (showBookmarks) {
         AlertDialog(onDismissRequest = { showBookmarks = false }, title = { Text("Bookmarks · ${book.title}", fontFamily = FontFamily.Serif) },
