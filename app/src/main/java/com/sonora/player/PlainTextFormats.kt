@@ -27,10 +27,10 @@ object PlainTextFormats {
             .replace(Regex("""\\par[d]?"""), "\n")
             .replace(Regex("""\\line"""), "\n")
             .replace(Regex("""\\tab"""), "    ")
-            .replace(Regex("""\\u(-?\\d+)\\??""")) { match ->
+            .replace(Regex("""\\u(-?\d+)\??""")) { match ->
                 match.groupValues[1].toIntOrNull()?.let { String(Character.toChars(if (it < 0) it + 65536 else it)) } ?: ""
             }
-            .replace(Regex("""\\[a-zA-Z]+-?\\d* ?"""), "")
+            .replace(Regex("""\\[a-zA-Z]+-?\d* ?"""), "")
             .replace(Regex("""\\[^a-zA-Z]"""), "")
             .replace("{", "").replace("}", "").trim()
         val escaped = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
