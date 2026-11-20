@@ -133,6 +133,7 @@ private fun SonoraApp() {
     var playbackSpeed by remember { mutableFloatStateOf(preferences.getFloat("playback_speed", 1f).coerceIn(0.5f, 2f)) }
     var sleepTimerMinutes by remember { mutableStateOf<Int?>(null) }
     var playlists by remember { mutableStateOf(PlaylistStore(context).load()) }
+    var queueRestored by remember { mutableStateOf(false) }
     var lyricLines by remember { mutableStateOf(emptyList<LyricLine>()) }
     val fetchStatus by SonoraFetch.status.collectAsState()
 
@@ -258,7 +259,7 @@ private fun SonoraApp() {
                     recentIds = (listOf(t.id.toString()) + recentIds.filterNot { it == t.id.toString() }).take(40)
                     preferences.edit().putString("recent_ids", recentIds.joinToString(",")).apply()
                     playCounts = playCounts.toMutableMap().apply { put(t.id.toString(), (get(t.id.toString()) ?: 0) + 1) }
-                    preferences.edit().putString("play_counts", playCounts.entries.joinToString(",") { "${it.key}:${it.value}" }).apply()
+                    preferences.edit().putString("play_counts", playCounts.entries.joinToString(",") { "${it.key}:${it.value}" }).putInt("queue_index", player.currentMediaItemIndex).apply()
                 }
             }
         }
@@ -294,11 +295,26 @@ private fun SonoraApp() {
         }
     }
 
+    LaunchedEffect(tracks, player) {
+        if (tracks.isNotEmpty() && !queueRestored && player.mediaItemCount == 0) {
+            val savedIds = preferences.getString("queue_ids", "").orEmpty().split(",").filter { it.isNotBlank() }
+            val savedQueue = savedIds.mapNotNull { id -> tracks.firstOrNull { it.id.toString() == id } }
+            if (savedQueue.isNotEmpty()) {
+                val startIndex = preferences.getInt("queue_index", 0).coerceIn(0, savedQueue.lastIndex)
+                player.setMediaItems(savedQueue.map { MediaItem.Builder().setUri(it.uri).setMediaId(it.id.toString()).build() }, startIndex, 0L)
+                player.prepare()
+                currentTrack = savedQueue[startIndex]
+            }
+            queueRestored = true
+        }
+    }
+
     fun startQueue(source: List<AudioTrack>, chosen: AudioTrack) {
         if (source.isEmpty()) return
         val queue = if (shuffle) (source.filterNot { it.id == chosen.id }.shuffled() + chosen) else source
         val startIndex = queue.indexOfFirst { it.id == chosen.id }.coerceAtLeast(0)
         player.setMediaItems(queue.map { MediaItem.Builder().setUri(it.uri).setMediaId(it.id.toString()).build() }, startIndex, 0L)
+        preferences.edit().putString("queue_ids", queue.joinToString(",") { it.id.toString() }).putInt("queue_index", startIndex).apply()
         currentTrack = chosen
         player.repeatMode = repeatMode
         player.shuffleModeEnabled = shuffle
@@ -307,6 +323,45 @@ private fun SonoraApp() {
 
     }
     fun play(track: AudioTrack) = startQueue(tracks, track)
+    fun queueTracks(): List<AudioTrack> = (0 until player.mediaItemCount).mapNotNull { index ->
+        val id = player.getMediaItemAt(index).mediaId
+        tracks.firstOrNull { it.id.toString() == id }
+    }
+    fun saveCurrentQueue(items: List<MediaItem>, selectedId: String?) {
+        preferences.edit().putString("queue_ids", items.joinToString(",") { it.mediaId }).putInt("queue_index", items.indexOfFirst { it.mediaId == selectedId }.coerceAtLeast(0)).apply()
+    }
+    fun moveQueueItem(from: Int, to: Int) {
+        val items = (0 until player.mediaItemCount).map { player.getMediaItemAt(it) }.toMutableList()
+        if (from !in items.indices || to !in items.indices) return
+        val wasPlaying = player.isPlaying
+        val selectedId = player.currentMediaItem?.mediaId
+        val position = player.currentPosition
+        items.add(to, items.removeAt(from))
+        val selectedIndex = items.indexOfFirst { it.mediaId == selectedId }.coerceAtLeast(0)
+        player.setMediaItems(items, selectedIndex, position)
+        player.prepare()
+        if (wasPlaying) player.play()
+        saveCurrentQueue(items, selectedId)
+    }
+    fun removeQueueItem(index: Int) {
+        val items = (0 until player.mediaItemCount).map { player.getMediaItemAt(it) }.toMutableList()
+        if (index !in items.indices) return
+        val wasPlaying = player.isPlaying
+        val selectedId = player.currentMediaItem?.mediaId
+        val position = player.currentPosition
+        items.removeAt(index)
+        if (items.isEmpty()) {
+            player.clearMediaItems()
+            preferences.edit().remove("queue_ids").remove("queue_index").apply()
+            currentTrack = null
+        } else {
+            val selectedIndex = items.indexOfFirst { it.mediaId == selectedId }.let { if (it >= 0) it else index.coerceAtMost(items.lastIndex) }
+            player.setMediaItems(items, selectedIndex, position.coerceAtLeast(0L))
+            player.prepare()
+            if (wasPlaying) player.play()
+            saveCurrentQueue(items, player.currentMediaItem?.mediaId ?: items[selectedIndex].mediaId)
+        }
+    }
     fun toggleFavorite(track: AudioTrack) {
         favorites = if (track.id.toString() in favorites) favorites - track.id.toString() else favorites + track.id.toString()
         preferences.edit().putStringSet("favorite_ids", favorites).apply()
@@ -356,6 +411,7 @@ private fun SonoraApp() {
                             songs.firstOrNull()?.let { startQueue(songs, it) }
                         })
                         "Lyrics" -> LyricsPage(lyricLines, positionMs, ink, panel, muted, { lyricLauncher.launch(arrayOf("text/*", "application/octet-stream")) }, { tab = "Now Playing" })
+                        "Queue" -> QueuePage(queueTracks(), player.currentMediaItemIndex, { index -> player.seekTo(index, 0L); player.play() }, ::moveQueueItem, ::removeQueueItem, ink, panel, muted)
                         "Equalizer" -> EqualizerPage(SonoraPlaybackService.audioSessionId, ink, panel, muted, { tab = "Settings" })
                         "Settings" -> SettingsPage(darkMode, { darkMode = it; preferences.edit().putBoolean("dark_mode", it).apply() }, shuffle, { shuffle = it; player.shuffleModeEnabled = it }, repeatMode, { repeatMode = it; player.repeatMode = it }, tracks.size, ink, panel, muted, { tab = "Equalizer" })
                         else -> HomePage(tracks, currentTrack, isPlaying, recentIds, ::play, ::requestScan, { tab = "Library" }, ink, panel, muted, darkMode)
@@ -368,7 +424,7 @@ private fun SonoraApp() {
                 BottomNav(tab, ink, muted) { tab = it }
             }
             if (tab == "Now Playing" && currentTrack != null) {
-                NowPlayingOverlay(currentTrack!!, isPlaying, positionMs, player.duration.takeIf { it > 0 } ?: currentTrack!!.durationMs, ink, paper, panel, muted, darkMode, { if (player.isPlaying) player.pause() else player.play() }, { player.seekToPreviousMediaItem() }, { player.seekToNextMediaItem() }, { player.seekTo(it) }, { tab = "Listen" }, shuffle, { shuffle = it; player.shuffleModeEnabled = it }, repeatMode, { repeatMode = it; player.repeatMode = it }, currentTrack!!.id.toString() in favorites, { toggleFavorite(currentTrack!!) }, { tab = "Lyrics" }, { editingTrack = currentTrack }, { tab = "Equalizer" }, sleepTimerMinutes, { sleepTimerMinutes = it }, playbackSpeed, { speed -> playbackSpeed = speed })
+                NowPlayingOverlay(currentTrack!!, isPlaying, positionMs, player.duration.takeIf { it > 0 } ?: currentTrack!!.durationMs, ink, paper, panel, muted, darkMode, { if (player.isPlaying) player.pause() else player.play() }, { player.seekToPreviousMediaItem() }, { player.seekToNextMediaItem() }, { player.seekTo(it) }, { tab = "Listen" }, shuffle, { shuffle = it; player.shuffleModeEnabled = it }, repeatMode, { repeatMode = it; player.repeatMode = it }, currentTrack!!.id.toString() in favorites, { toggleFavorite(currentTrack!!) }, { tab = "Lyrics" }, { tab = "Queue" }, { editingTrack = currentTrack }, { tab = "Equalizer" }, sleepTimerMinutes, { sleepTimerMinutes = it }, playbackSpeed, { speed -> playbackSpeed = speed })
             }
             editingTrack?.let { track ->
                 TrackMetadataEditor(track, onDismiss = { editingTrack = null }, onSave = { metadata ->
