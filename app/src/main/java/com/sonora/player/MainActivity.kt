@@ -357,7 +357,7 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
         if (source.isEmpty()) return
         val queue = if (shuffle) (source.filterNot { it.id == chosen.id }.shuffled() + chosen) else source
         val startIndex = queue.indexOfFirst { it.id == chosen.id }.coerceAtLeast(0)
-        player.setMediaItems(queue.map { MediaItem.Builder().setUri(it.uri).setMediaId(it.id.toString()).build() }, startIndex, 0L)
+        player.setMediaItems(queue.map { MediaItem.Builder().setUri(it.uri).setMediaId(it.id.toString()).setMediaMetadata(MediaMetadata.Builder().setTitle(it.title).setArtist(it.artist).setAlbumTitle(it.album).setArtworkUri(Uri.parse("content://media/external/audio/albumart/${it.albumId}")).build()).build() }, startIndex, 0L)
         preferences.edit().putString("queue_ids", queue.joinToString(",") { it.id.toString() }).putInt("queue_index", startIndex).apply()
         libraryScope.launch { sonoraDao.saveQueue(SonoraQueueSnapshot(trackIds = queue.joinToString(",") { it.id.toString() }, currentIndex = startIndex, positionMs = 0L)) }
         currentTrack = chosen
