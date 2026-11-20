@@ -121,7 +121,7 @@ fun AthenaeumArchivePanel(dao: AthenaeumDao, books: List<AthenaeumBook>, onClose
                         }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF252722))) { Text("Save entry") }
                     }
                     HorizontalDivider(Modifier.padding(vertical = 12.dp), color = Color(0xFFE4E3DD))
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                         items(entries, key = { it.id }) { entry ->
                             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.White).padding(13.dp)) {
                                 Text("“${entry.quote}”", color = Color(0xFF252722), fontSize = 14.sp, fontWeight = FontWeight.Medium)
@@ -134,7 +134,7 @@ fun AthenaeumArchivePanel(dao: AthenaeumDao, books: List<AthenaeumBook>, onClose
                         }
                     }
                 }
-                "Highlights" -> LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                "Highlights" -> LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(annotations, key = { it.id }) { annotation ->
                         val book = books.firstOrNull { it.id == annotation.bookId }
                         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.White).padding(13.dp)) {
