@@ -25,7 +25,8 @@ The repository currently ships one Android package containing two connected expe
 - [x] System equalizer where available.
 - [x] Listening statistics, artist/track rotation, monthly and rolling 30-day summaries.
 - [x] Light/dark appearance and artwork-derived accent with fixed user-selectable palettes.
-- [ ] Actual audio visualisation/capture with permission and device compatibility review.
+- [x] Optional live FFT audio visualiser using Android Visualizer and a user-requested RECORD_AUDIO permission.
+- [ ] Device-specific visualiser compatibility and permission-flow verification.
 - [ ] More complete play-duration analytics and richer monthly reports.
 - [x] Initial unit tests for Markdown, RTF and legacy MOBI utility paths.
 - [ ] Broader unit/instrumentation/UI tests and accessibility audit.
