@@ -27,7 +27,8 @@ The repository currently ships one Android package containing two connected expe
 - [x] Light/dark appearance and artwork-derived accent with fixed user-selectable palettes.
 - [ ] Actual audio visualisation/capture with permission and device compatibility review.
 - [ ] More complete play-duration analytics and richer monthly reports.
-- [ ] Automated unit/UI tests and accessibility audit.
+- [x] Initial unit tests for Markdown, RTF and legacy MOBI utility paths.
+- [ ] Broader unit/instrumentation/UI tests and accessibility audit.
 
 ### Release readiness
 - [ ] Device matrix testing (Android 8 through current Android).
