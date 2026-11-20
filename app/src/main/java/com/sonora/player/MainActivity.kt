@@ -541,7 +541,8 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
                         "Lyrics" -> LyricsPage(lyricLines, positionMs, ink, panel, muted, { lyricLauncher.launch(arrayOf("text/*", "application/octet-stream")) }, { tab = "Now Playing" })
                         "Queue" -> QueuePage(queueTracks(), player.currentMediaItemIndex, { index -> player.seekTo(index, 0L); player.play() }, ::moveQueueItem, ::removeQueueItem, ink, panel, muted)
                         "Equalizer" -> EqualizerPage(SonoraPlaybackService.audioSessionId, ink, panel, muted, { tab = "Settings" })
-                        "Settings" -> SettingsPage(darkMode, { darkMode = it; preferences.edit().putBoolean("dark_mode", it).apply() }, shuffle, { shuffle = it; player.shuffleModeEnabled = it }, repeatMode, { repeatMode = it; player.repeatMode = it }, tracks.size, accentChoice, { choice -> accentChoice = choice; preferences.edit().putString("accent_mode", choice).apply() }, ink, panel, muted, { tab = "Equalizer" })
+                        "Visualizer" -> AudioVisualizerPage(SonoraPlaybackService.audioSessionId, ink, panel, muted, { tab = "Settings" })
+                        "Settings" -> SettingsPage(darkMode, { darkMode = it; preferences.edit().putBoolean("dark_mode", it).apply() }, shuffle, { shuffle = it; player.shuffleModeEnabled = it }, repeatMode, { repeatMode = it; player.repeatMode = it }, tracks.size, accentChoice, { choice -> accentChoice = choice; preferences.edit().putString("accent_mode", choice).apply() }, ink, panel, muted, { tab = "Equalizer" }, { tab = "Visualizer" })
                         else -> HomePage(tracks, currentTrack, isPlaying, recentIds, ::play, ::requestScan, { tab = "Library" }, ink, panel, muted, darkMode)
                     }
                 }
@@ -1021,7 +1022,7 @@ private fun EqualizerPage(audioSessionId: Int, ink: Color, panel: Color, muted: 
     }
 }
 @Composable
-private fun SettingsPage(dark: Boolean, onDark: (Boolean) -> Unit, shuffle: Boolean, onShuffle: (Boolean) -> Unit, repeat: Int, onRepeat: (Int) -> Unit, trackCount: Int, accentChoice: String, onAccentChoice: (String) -> Unit, ink: Color, panel: Color, muted: Color, onEqualizer: () -> Unit) {
+private fun SettingsPage(dark: Boolean, onDark: (Boolean) -> Unit, shuffle: Boolean, onShuffle: (Boolean) -> Unit, repeat: Int, onRepeat: (Int) -> Unit, trackCount: Int, accentChoice: String, onAccentChoice: (String) -> Unit, ink: Color, panel: Color, muted: Color, onEqualizer: () -> Unit, onVisualizer: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         PageHeader("Settings", "Preferences for listening", ink, muted)
         SettingToggle("Dark appearance", "A softer interface after dark.", dark, onDark, ink, panel, muted)
@@ -1039,7 +1040,10 @@ private fun SettingsPage(dark: Boolean, onDark: (Boolean) -> Unit, shuffle: Bool
             Column(Modifier.weight(1f)) { Text("Repeat", fontWeight = FontWeight.SemiBold, color = ink); Text("Playback repeat mode", fontSize = 10.sp, color = muted) }
             TextButton(onClick = { onRepeat(if (repeat == Player.REPEAT_MODE_OFF) Player.REPEAT_MODE_ALL else if (repeat == Player.REPEAT_MODE_ALL) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF) }) { Text(when (repeat) { Player.REPEAT_MODE_ALL -> "ALL"; Player.REPEAT_MODE_ONE -> "ONE"; else -> "OFF" }) }
         }
-        Button(onClick = onEqualizer) { Icon(Icons.Rounded.Equalizer, null); Spacer(Modifier.width(6.dp)); Text("OPEN EQUALIZER") }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = onEqualizer, modifier = Modifier.weight(1f)) { Icon(Icons.Rounded.Equalizer, null); Spacer(Modifier.width(6.dp)); Text("EQUALIZER") }
+            OutlinedButton(onClick = onVisualizer, modifier = Modifier.weight(1f)) { Icon(Icons.Rounded.GraphicEq, null); Spacer(Modifier.width(6.dp)); Text("VISUALIZER") }
+        }
         InfoSetting("Local music", "Your library stays on your device.", ink, panel, muted)
         InfoSetting("Library indexed", "$trackCount audio tracks found.", ink, panel, muted)
         InfoSetting("SONORA", "A personal, local-first listening space.", ink, panel, muted)
