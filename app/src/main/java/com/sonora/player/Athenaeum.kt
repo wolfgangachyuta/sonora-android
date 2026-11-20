@@ -168,6 +168,8 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
     val context = LocalContext.current
     val dao = remember { AthenaeumDatabase.get(context).dao() }
     val scope = rememberCoroutineScope()
+    val preferences = remember { context.getSharedPreferences("athenaeum_preferences", Context.MODE_PRIVATE) }
+    var readingGoal by remember { mutableIntStateOf(preferences.getInt("reading_goal_books", 12).coerceIn(1, 200)) }
     val books by dao.observeBooks().collectAsState(initial = emptyList())
     val shelves by dao.observeShelves().collectAsState(initial = emptyList())
     var search by remember { mutableStateOf("") }
@@ -233,6 +235,27 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
                 Icon(Icons.Rounded.Add, "Add book", tint = AthenaGold)
             }
         }
+        val finishedBooks = books.count { it.status == "Finished" }
+        val goalProgress = finishedBooks.toFloat().div(readingGoal.toFloat()).coerceIn(0f, 1f)
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).clip(RoundedCornerShape(8.dp)).background(AthenaMahogany).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("THE READING CHALLENGE", color = AthenaGold, fontSize = 9.sp, letterSpacing = 1.6.sp, fontWeight = FontWeight.Bold)
+                    Text("$finishedBooks of $readingGoal books completed", color = AthenaIvory, fontFamily = FontFamily.Serif, fontSize = 17.sp)
+                }
+                TextButton(onClick = {
+                    readingGoal = (readingGoal - 1).coerceAtLeast(1)
+                    preferences.edit().putInt("reading_goal_books", readingGoal).apply()
+                }, enabled = readingGoal > 1) { Text("−", color = AthenaGold, fontSize = 20.sp) }
+                TextButton(onClick = {
+                    readingGoal = (readingGoal + 1).coerceAtMost(200)
+                    preferences.edit().putInt("reading_goal_books", readingGoal).apply()
+                }, enabled = readingGoal < 200) { Text("+", color = AthenaGold, fontSize = 20.sp) }
+            }
+            LinearProgressIndicator(progress = { goalProgress }, modifier = Modifier.fillMaxWidth().height(5.dp), color = AthenaGold, trackColor = AthenaWalnut)
+            Text(if (finishedBooks >= readingGoal) "Goal reached. Set another and keep reading." else "${(readingGoal - finishedBooks).coerceAtLeast(0)} books to your goal", color = AthenaParchment.copy(.8f), fontSize = 10.sp)
+        }
+
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(search, { search = it }, Modifier.weight(1f), placeholder = { Text("Search title, author, ISBN…", color = AthenaParchment.copy(.55f)) }, singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(focusedTextColor = AthenaIvory, unfocusedTextColor = AthenaIvory, focusedBorderColor = AthenaGold, unfocusedBorderColor = AthenaGold.copy(.4f), cursorColor = AthenaGold))
