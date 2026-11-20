@@ -63,8 +63,8 @@ object EpubParser {
             p.next()
         }
         val navTitles = when {
-            navHref.isNotBlank() -> parseEpub3Nav(files[navHref])
-            ncxHref.isNotBlank() -> parseNcx(files[ncxHref])
+            navHref.isNotBlank() -> parseEpub3Nav(files[navHref], navHref.substringBeforeLast('/', ""))
+            ncxHref.isNotBlank() -> parseNcx(files[ncxHref], ncxHref.substringBeforeLast('/', ""))
             else -> emptyMap()
         }
         val chapters = spine.mapNotNull { id ->
@@ -82,7 +82,7 @@ object EpubParser {
         setInput(ByteArrayInputStream(bytes), "UTF-8")
     }
 
-    private fun parseEpub3Nav(bytes: ByteArray?): Map<String, String> {
+    private fun parseEpub3Nav(bytes: ByteArray?, base: String): Map<String, String> {
         if (bytes == null) return emptyMap()
         val result = linkedMapOf<String, String>()
         val p = parser(bytes)
@@ -98,7 +98,7 @@ object EpubParser {
                 }
                 XmlPullParser.TEXT -> if (inAnchor) text.append(p.text)
                 XmlPullParser.END_TAG -> if (p.name == "a") {
-                    if (href.isNotBlank() && text.isNotBlank()) result[href.substringAfterLast('/')] = text.toString().trim()
+                    if (href.isNotBlank() && text.isNotBlank()) result[resolve(base, href)] = text.toString().trim()
                     inAnchor = false
                 }
             }
@@ -107,7 +107,7 @@ object EpubParser {
         return result
     }
 
-    private fun parseNcx(bytes: ByteArray?): Map<String, String> {
+    private fun parseNcx(bytes: ByteArray?, base: String): Map<String, String> {
         if (bytes == null) return emptyMap()
         val result = linkedMapOf<String, String>()
         val p = parser(bytes)
@@ -119,7 +119,7 @@ object EpubParser {
                     "text" -> label = p.nextText().trim()
                     "content" -> {
                         src = p.getAttributeValue(null, "src").orEmpty().substringBefore('#')
-                        if (src.isNotBlank() && label.isNotBlank()) result[src.substringAfterLast('/')] = label
+                        if (src.isNotBlank() && label.isNotBlank()) result[resolve(base, src)] = label
                     }
                 }
             }
