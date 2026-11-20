@@ -1104,8 +1104,8 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
 }
 
 private fun sanitizeReaderHtml(html: String): String = html
-    .replace(Regex("""(?is)<script\\b[^>]*>.*?</script>"""), "")
-    .replace(Regex("""(?is)<iframe\\b[^>]*>.*?</iframe>"""), "")
-    .replace(Regex("""(?i)\\s+on[a-z]+\\s*=\\s*("[^"]*"|'[^']*'|[^\\s>]+)"""), "")
-    .replace(Regex("""(?i)(href|src)\\s*=\\s*(['"])\\s*javascript:.*?\\2"""), "")
-    .replace(Regex("""(?i)(href|src)\\s*=\\s*javascript:[^\\s>]+"""), "")
+    .replace(Regex("""(?is)<script\b[^>]*>.*?</script>"""), "")
+    .replace(Regex("""(?is)<iframe\b[^>]*>.*?</iframe>"""), "")
+    .replace(Regex("""(?i)\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)"""), "")
+    .replace(Regex("""(?i)(href|src)\s*=\s*(['"])\s*javascript:.*?\2"""), "")
+    .replace(Regex("""(?i)(href|src)\s*=\s*javascript:[^\s>]+"""), "")
