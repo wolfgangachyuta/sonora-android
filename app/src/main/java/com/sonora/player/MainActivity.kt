@@ -308,7 +308,7 @@ private fun SonoraApp() {
                 TopBrand(ink, muted, onSearch = { tab = "Search" }, onFavourites = { tab = "Favourites" }, onSettings = { tab = "Settings" }, onBooks = { tab = "Athenaeum" })
                 AnimatedContent(tab, label = "main-content", modifier = Modifier.weight(1f)) { destination ->
                     when (destination) {
-                        "Athenaeum" -> AthenaeumScreen()
+                        "Athenaeum" -> AthenaeumScreen(onBack = { tab = "Listen" })
                         "Library" -> LibraryPage(tracks, loading, hasPermission, query, { query = it }, { libraryFilter = it }, libraryFilter, ::requestScan, ::play, currentTrack, favorites, ::toggleFavorite, ink, paper, panel, muted)
                         "Albums" -> GroupedPage("Albums", tracks.groupBy { it.album }.toList().sortedBy { it.first.lowercase() }, { it.second.firstOrNull()?.artist ?: "Unknown artist" }, { group -> group.second.firstOrNull()?.let { startQueue(group.second, it) } }, { tab = "Artists" }, ink, panel, muted)
                         "Artists" -> GroupedPage("Artists", tracks.groupBy { it.artist }.toList().sortedBy { it.first.lowercase() }, { "${it.second.size} tracks" }, { group -> group.second.firstOrNull()?.let { startQueue(group.second, it) } }, { tab = "Albums" }, ink, panel, muted)
