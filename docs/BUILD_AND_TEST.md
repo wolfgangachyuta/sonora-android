@@ -35,6 +35,7 @@ Output: app/build/outputs/apk/debug/app-debug.apk.
 - [ ] Bluetooth/headset controls, audio focus and unplugging headphones.
 - [ ] Import a synced LRC file and verify timing against playback.
 - [ ] Equalizer presets and band controls on the target device.
+- [ ] Optional visualizer permission grant/denial, FFT capture, pause/resume and release on headphone disconnect.
 - [ ] Dark/light appearance, large text, TalkBack labels, 48dp touch targets and small screens.
 - [ ] Bottom navigation with gesture navigation and three-button system navigation; verify it remains above the system bar.
 - [ ] Open the keyboard on Search and Fetch; verify content and navigation are not obscured by the IME.
@@ -43,7 +44,7 @@ Output: app/build/outputs/apk/debug/app-debug.apk.
 - [ ] Athenaeum: import multiple EPUB/PDF/TXT/HTML/FB2/MOBI/RTF/Markdown/CBZ documents; verify persisted URI access after relaunch.
 - [ ] Athenaeum: EPUB 2/3 spine order, TOC, images/CSS, chapter navigation and saved progress.
 - [ ] Athenaeum: PDF page navigation, OCR, bookmarks, annotations, Commonplace Book, TTS and reading-session statistics.
-- [ ] Athenaeum: JSON backup/restore, CSV export, ISBN lookup and all three home-screen widgets.
+- [ ] Athenaeum: JSON archive, portable ZIP backup/restore with ebook/cover files, CSV export, ISBN lookup and all three home-screen widgets.
 - [ ] Athenaeum: verify legacy database migrations from schema versions 1 and 2.
 
 ## What CI does not prove
