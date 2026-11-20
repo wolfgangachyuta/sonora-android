@@ -20,7 +20,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.*\nimport androidx.compose.foundation.rememberScrollState\nimport androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -357,7 +359,8 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
     var pageCount by remember { mutableIntStateOf(1) }
     var content by remember(book.id) { mutableStateOf("Loading your book…") }
     var bitmap by remember(book.id) { mutableStateOf<Bitmap?>(null) }
-    var textSize by remember { mutableFloatStateOf(18f) }\n    val textScroll = rememberScrollState(book.lastLocation.coerceAtLeast(0))
+    var textSize by remember { mutableFloatStateOf(18f) }
+    val textScroll = rememberScrollState(book.lastLocation.coerceAtLeast(0))
     var dark by remember { mutableStateOf(false) }
     var readerWebView by remember { mutableStateOf<WebView?>(null) }
 
@@ -392,7 +395,12 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                     when (ext) {
                         "txt" -> bytes.toString(Charsets.UTF_8)
                         "html", "htm" -> bytes.toString(Charsets.UTF_8)
-                        "fb2" -> {\n                            val xml = bytes.toString(Charsets.UTF_8)\n                            val body = xml.substringAfter("<body", xml).substringAfter(">", xml).substringBefore("</body>", xml)\n                            "<html><body>" + body.replace(Regex("<p[^>]*>"), "<p>") + "</body></html>"\n                        }\n                        "epub" -> {
+                        "fb2" -> {
+                            val xml = bytes.toString(Charsets.UTF_8)
+                            val body = xml.substringAfter("<body", xml).substringAfter(">", xml).substringBefore("</body>", xml)
+                            "<html><body>" + body.replace(Regex("<p[^>]*>"), "<p>") + "</body></html>"
+                        }
+                        "epub" -> {
                             val output = StringBuilder()
                             ZipInputStream(bytes.inputStream()).use { zip ->
                                 var entry = zip.nextEntry
@@ -416,7 +424,14 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
         dao.updateProgress(book.id, book.progress, page, System.currentTimeMillis())
     }
 
-    LaunchedEffect(textScroll.value, textScroll.maxValue) {\n        if (ext == "txt" && textScroll.maxValue > 0) {\n            kotlinx.coroutines.delay(350)\n            dao.updateProgress(book.id, (textScroll.value * 100 / textScroll.maxValue).coerceIn(0, 100), textScroll.value)\n        }\n    }\n\n    Column(Modifier.fillMaxSize().background(if (dark) AthenaCharcoal else AthenaParchment)) {
+    LaunchedEffect(textScroll.value, textScroll.maxValue) {
+        if (ext == "txt" && textScroll.maxValue > 0) {
+            kotlinx.coroutines.delay(350)
+            dao.updateProgress(book.id, (textScroll.value * 100 / textScroll.maxValue).coerceIn(0, 100), textScroll.value)
+        }
+    }
+
+    Column(Modifier.fillMaxSize().background(if (dark) AthenaCharcoal else AthenaParchment)) {
         Row(Modifier.fillMaxWidth().background(AthenaWalnut).padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onClose) { Icon(Icons.Rounded.ArrowBack, "Close reader", tint = AthenaIvory) }
             Column(Modifier.weight(1f)) {
