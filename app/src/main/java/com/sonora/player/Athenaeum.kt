@@ -147,6 +147,8 @@ interface AthenaeumDao {
     suspend fun updateProgress(id: Long, progress: Int, location: Int, openedAt: Long = System.currentTimeMillis())
     @Query("UPDATE athenaeum_books SET favorite=:favorite WHERE id=:id")
     suspend fun setFavorite(id: Long, favorite: Boolean)
+    @Query("UPDATE athenaeum_books SET coverUri=:coverUri WHERE id=:id")
+    suspend fun updateCover(id: Long, coverUri: String)
     @Insert
     suspend fun addBookmark(bookmark: AthenaeumBookmark)
     @Query("SELECT * FROM athenaeum_bookmarks WHERE bookId=:bookId ORDER BY createdAt DESC")
@@ -312,7 +314,21 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
             val ext = name.substringAfterLast('.', "").lowercase()
             if (ext in setOf("epub", "pdf", "txt", "html", "htm", "fb2", "mobi", "rtf", "md", "markdown", "cbz")) {
                 scope.launch {
-                    dao.saveBook(AthenaeumBook(title = name.substringBeforeLast('.', name), ownership = "Digital", fileUri = uri.toString(), fileType = ext, status = "Want to Read"))
+                    val bookId = dao.saveBook(AthenaeumBook(title = name.substringBeforeLast('.', name), ownership = "Digital", fileUri = uri.toString(), fileType = ext, status = "Want to Read"))
+                    if (ext == "epub") {
+                        val cover = withContext(Dispatchers.IO) {
+                            runCatching {
+                                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@runCatching null
+                                EpubParser.parse(bytes).coverImage
+                            }.getOrNull()
+                        }
+                        if (cover != null) withContext(Dispatchers.IO) {
+                            val directory = java.io.File(context.filesDir, "athenaeum_covers").apply { mkdirs() }
+                            val file = java.io.File(directory, "$bookId.cover")
+                            file.writeBytes(cover)
+                            dao.updateCover(bookId, Uri.fromFile(file).toString())
+                        }
+                    }
                 }
             } else message = "This format is not supported by the current reader: .$ext"
         }
