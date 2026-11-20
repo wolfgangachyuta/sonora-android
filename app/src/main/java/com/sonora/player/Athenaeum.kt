@@ -166,6 +166,35 @@ interface AthenaeumDao {
     suspend fun addReadingSession(session: AthenaeumReadingSession)
     @Query("SELECT * FROM athenaeum_reading_sessions ORDER BY startedAt DESC")
     fun observeReadingSessions(): Flow<List<AthenaeumReadingSession>>
+
+    @Query("SELECT * FROM athenaeum_books")
+    suspend fun backupBooks(): List<AthenaeumBook>
+    @Query("SELECT * FROM athenaeum_shelves")
+    suspend fun backupShelves(): List<AthenaeumShelf>
+    @Query("SELECT * FROM athenaeum_book_shelf")
+    suspend fun backupBookShelves(): List<AthenaeumBookShelf>
+    @Query("SELECT * FROM athenaeum_bookmarks")
+    suspend fun backupBookmarks(): List<AthenaeumBookmark>
+    @Query("SELECT * FROM athenaeum_annotations")
+    suspend fun backupAnnotations(): List<AthenaeumAnnotation>
+    @Query("SELECT * FROM athenaeum_commonplace")
+    suspend fun backupCommonplace(): List<AthenaeumCommonplaceEntry>
+    @Query("SELECT * FROM athenaeum_reading_sessions")
+    suspend fun backupReadingSessions(): List<AthenaeumReadingSession>
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun restoreBooks(items: List<AthenaeumBook>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun restoreShelves(items: List<AthenaeumShelf>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun restoreBookShelves(items: List<AthenaeumBookShelf>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun restoreBookmarks(items: List<AthenaeumBookmark>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun restoreAnnotations(items: List<AthenaeumAnnotation>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun restoreCommonplace(items: List<AthenaeumCommonplaceEntry>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun restoreReadingSessions(items: List<AthenaeumReadingSession>)
 }
 
 @Database(entities = [AthenaeumBook::class, AthenaeumShelf::class, AthenaeumBookShelf::class, AthenaeumBookmark::class, AthenaeumAnnotation::class, AthenaeumCommonplaceEntry::class, AthenaeumReadingSession::class], version = 3, exportSchema = false)
@@ -219,6 +248,25 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
     var showSort by remember { mutableStateOf(false) }
     var showArchive by remember { mutableStateOf(false) }
 
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) scope.launch {
+            runCatching {
+                val json = AthenaeumBackup.export(dao)
+                context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(json) }
+                message = "Full Athenaeum backup exported."
+            }.onFailure { message = "Backup failed: " + it.message }
+        }
+    }
+    val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) scope.launch {
+            runCatching {
+                val json = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: error("Could not read backup file")
+                AthenaeumBackup.restore(json, dao)
+                message = "Athenaeum backup restored."
+            }.onFailure { message = "Restore failed: " + it.message }
+        }
+    }
+
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         uris.forEach { uri ->
             runCatching { context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) }
@@ -268,6 +316,8 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
                 Text("${books.size} books in your collection", color = Color(0xFF77766F), fontSize = 12.sp)
             }
             IconButton(onClick = { showArchive = true }) { Icon(Icons.Rounded.AutoStories, "Open Commonplace Book and reading archive", tint = Color(0xFF454640)) }
+            IconButton(onClick = { exportLauncher.launch("athenaeum-backup.json") }) { Icon(Icons.Rounded.FileDownload, "Export full library backup", tint = Color(0xFF454640)) }
+            IconButton(onClick = { restoreLauncher.launch(arrayOf("application/json", "text/json", "text/plain")) }) { Icon(Icons.Rounded.FileUpload, "Restore library backup", tint = Color(0xFF454640)) }
             IconButton(onClick = onBack) { Icon(Icons.Rounded.Close, "Close Athenaeum", tint = Color(0xFF454640)) }
             IconButton(onClick = { importLauncher.launch(arrayOf("application/epub+zip", "application/pdf", "text/plain", "text/html", "application/x-fictionbook+xml", "application/octet-stream")) }) {
                 Icon(Icons.Rounded.FileOpen, "Import books", tint = Color(0xFF30312D))
