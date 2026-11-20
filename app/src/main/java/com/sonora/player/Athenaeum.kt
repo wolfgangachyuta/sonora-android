@@ -319,7 +319,7 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
     }
 
     val matchingBooks = books.filter { book ->
-        val matchesSearch = search.isBlank() || listOf(book.title, book.author, book.isbn, book.publisher, book.genre).any { it.contains(search, true) }
+        val matchesSearch = search.isBlank() || listOf(book.title, book.author, book.isbn, book.publisher, book.genre, book.language, book.description, book.notes, book.publicationYear).any { it.contains(search, true) }
         val matchesFilter = when (filter) {
             "Currently reading" -> book.status == "Currently Reading"
             "Want to read" -> book.status == "Want to Read"
@@ -335,7 +335,10 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
         "Title A–Z" -> matchingBooks.sortedBy { it.title.lowercase() }
         "Author A–Z" -> matchingBooks.sortedBy { it.author.lowercase() }
         "Progress" -> matchingBooks.sortedByDescending { it.progress }
-        else -> matchingBooks.sortedByDescending { it.lastOpenedAt.takeIf { time -> time > 0L } ?: it.addedAt }
+        "Highest rated" -> matchingBooks.sortedByDescending { it.rating }
+        "Publication year" -> matchingBooks.sortedByDescending { it.publicationYear.toIntOrNull() ?: 0 }
+        "Recently read" -> matchingBooks.sortedByDescending { it.lastOpenedAt }
+        else -> matchingBooks.sortedByDescending { it.addedAt }
     }
     val currentlyReading = books.filter { it.status == "Currently Reading" }.sortedByDescending { it.lastOpenedAt }
 
@@ -435,7 +438,7 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
             Box {
                 IconButton(onClick = { showSort = true }) { Icon(Icons.Rounded.Sort, "Sort books", tint = Color(0xFF454640)) }
                 DropdownMenu(expanded = showSort, onDismissRequest = { showSort = false }) {
-                    listOf("Recently added", "Title A–Z", "Author A–Z", "Progress").forEach { option ->
+                    listOf("Recently added", "Recently read", "Title A–Z", "Author A–Z", "Publication year", "Highest rated", "Progress").forEach { option ->
                         DropdownMenuItem(text = { Text(option) }, onClick = { sortBy = option; preferences.edit().putString("sort_books_by", option).apply(); showSort = false })
                     }
                 }
@@ -491,8 +494,11 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
                 "Title A–Z" -> shelfBooks.sortedBy { it.title.lowercase() }
                 "Author A–Z" -> shelfBooks.sortedBy { it.author.lowercase() }
                 "Progress" -> shelfBooks.sortedByDescending { it.progress }
-                else -> shelfBooks.sortedByDescending { it.lastOpenedAt.takeIf { t -> t > 0L } ?: it.addedAt }
-            }.filter { search.isBlank() || it.title.contains(search, true) || it.author.contains(search, true) }
+                "Highest rated" -> shelfBooks.sortedByDescending { it.rating }
+                "Publication year" -> shelfBooks.sortedByDescending { it.publicationYear.toIntOrNull() ?: 0 }
+                "Recently read" -> shelfBooks.sortedByDescending { it.lastOpenedAt }
+                else -> shelfBooks.sortedByDescending { it.addedAt }
+            }.filter { search.isBlank() || listOf(it.title, it.author, it.isbn, it.publisher, it.genre, it.language, it.description, it.notes, it.publicationYear).any { value -> value.contains(search, true) } }
         } else visibleBooks
 
         if (displayBooks.isEmpty()) {
