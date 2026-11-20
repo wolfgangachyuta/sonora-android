@@ -163,7 +163,7 @@ abstract class AthenaeumDatabase : RoomDatabase() {
 }
 
 @Composable
-fun AthenaeumScreen() {
+fun AthenaeumScreen(onBack: () -> Unit = {}) {
     val context = LocalContext.current
     val dao = remember { AthenaeumDatabase.get(context).dao() }
     val scope = rememberCoroutineScope()
@@ -218,7 +218,8 @@ fun AthenaeumScreen() {
     }
 
     Column(Modifier.fillMaxSize().background(AthenaWalnut)) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back to SONORA", tint = AthenaGold) }
             Column(Modifier.weight(1f)) {
                 Text("ATHENAEUM", color = AthenaGold, fontSize = 10.sp, letterSpacing = 3.sp, fontWeight = FontWeight.Bold)
                 Text("Your private reading room.", color = AthenaIvory, fontSize = 27.sp, fontFamily = FontFamily.Serif)
