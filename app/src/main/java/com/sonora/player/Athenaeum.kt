@@ -911,21 +911,26 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
             }
             LaunchedEffect(comicPage) { dao.updateProgress(book.id, ((comicPage + 1) * 100 / comicPages.size.coerceAtLeast(1)), comicPage) }
         } else if (ext == "epub" || ext == "html" || ext == "htm" || ext == "fb2" || ext == "mobi" || ext == "md" || ext == "markdown" || ext == "rtf") {
+            val themedContent = remember(content, dark, textSize) {
+                content.replace("#252722", if (dark) "#ECEDE7" else "#252722")
+                    .replace("#f7f6f1", if (dark) "#171916" else "#F7F6F1")
+                    .replace("font-size:1.08em", "font-size:${textSize}px")
+            }
             AndroidView(factory = { ctx -> WebView(ctx).apply {
                 settings.javaScriptEnabled = false
                 settings.domStorageEnabled = false
                 webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView?, url: String?) {
-                        view?.scrollTo(0, book.lastLocation.coerceAtLeast(0))
+                        view?.scrollTo(0, if (ext == "epub") 0 else book.lastLocation.coerceAtLeast(0))
                     }
                 }
                 setBackgroundColor(if (dark) android.graphics.Color.rgb(23, 25, 22) else android.graphics.Color.rgb(247, 246, 241))
-                tag = content
+                tag = themedContent
                 readerWebView = this
-                loadDataWithBaseURL(null, content, "text/html", "UTF-8", null)
+                loadDataWithBaseURL(null, themedContent, "text/html", "UTF-8", null)
             } }, update = { web ->
                 web.setBackgroundColor(if (dark) android.graphics.Color.DKGRAY else android.graphics.Color.rgb(233, 222, 198))
-                if (web.tag != content) { web.tag = content; web.loadDataWithBaseURL(null, content, "text/html", "UTF-8", null) }
+                if (web.tag != themedContent) { web.tag = themedContent; web.loadDataWithBaseURL(null, themedContent, "text/html", "UTF-8", null) }
                 if (web.scrollY == 0 && book.lastLocation > 0) web.post { web.scrollTo(0, book.lastLocation) }
             }, modifier = Modifier.weight(1f).fillMaxWidth())
             if (ext == "epub" && epubDocument != null) {
