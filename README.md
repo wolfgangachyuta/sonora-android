@@ -36,7 +36,7 @@ This is an active development build, not a release-verified product.
 - JSON-only Athenaeum archives preserve catalogue/archive records and URI references. Use the portable ZIP backup to package accessible ebook and cover files; files the app can no longer read are retained as URI references only.
 - EPUB support is an offline in-app parser/renderer, not a complete Readium implementation; DRM, some EPUB resources and advanced pagination are not supported.
 - MOBI support is limited to legacy PalmDOC-compressed MOBI 6; AZW3/KF8 and CBR are not currently supported.
-- Passage selection and persistent highlights are supported in WebView-based EPUB/HTML content; PDF-page highlights and dictionary lookup are not yet implemented.
+- Passage selection and persistent highlights are supported in WebView-based EPUB/HTML content. Dictionary definitions are an explicit online lookup; offline dictionary packs and PDF-page highlights are not yet implemented.
 - Cloud sync, OCR batch indexing and broader automated UI/integration tests remain outstanding. The optional live visualizer still needs device-specific verification. Initial unit tests cover Markdown, RTF and legacy MOBI utility paths; they have not been run in this session.
 - Physical-device verification is still required for background playback, widgets, OCR, TTS, reader formats, accessibility and Android-version differences.
 - ISBN lookup uses Google Books when the user explicitly requests a lookup; core libraries and playback remain local-first.
