@@ -339,6 +339,8 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
     }
     val currentlyReading = books.filter { it.status == "Currently Reading" }.sortedByDescending { it.lastOpenedAt }
 
+    LaunchedEffect(books) { AthenaeumWidgetUpdater.refresh(context) }
+
     Column(Modifier.fillMaxSize().background(Color(0xFFF6F5F1))) {
         Row(
             Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 8.dp),
