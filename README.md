@@ -1,38 +1,59 @@
-# SONORA
+# SONORA + Athenaeum
 
-**Your music, your space.** SONORA is a local-first Android music player with a restrained editorial interface. It indexes audio already available to Android's media library and plays it on-device.
+A local-first Android application with two connected experiences:
 
-> Development version: 0.3.0 — active development; physical-device verification remains necessary.
+- **SONORA** — a music library and player for audio already available on the device.
+- **Athenaeum** — a personal physical/digital book catalogue, ebook reader and literary archive.
 
-## Current implementation
+Both experiences currently live in the same Android application/package (com.sonora.player); Athenaeum is opened from SONORA's top bar and from its home-screen widgets.
 
-- Kotlin, Jetpack Compose and Material 3 interface with light/dark appearance.
-- MediaStore discovery, library browsing, albums, artists, search and favourites.
-- Media3 playback queue, mini-player, full-screen Now Playing, seek, shuffle and repeat.
-- Persistent favourites, recent-play history and play counts using SharedPreferences.
-- Persistent playlists: create, rename, delete, add selected tracks, remove individual tracks and play.
-- LRC file import and timed lyric display.
-- Native Android Equalizer controls where supported by the device.
-- Media3 MediaSessionService and UI MediaController connection for playback outside the activity.
-- Now Playing vinyl mode with rotating grooves, centred album art and circular drag-to-seek, alongside the square artwork view.
-- Safe-drawing insets for status/navigation bars, accessible navigation semantics, larger touch targets and scrollable settings/player screens.
-- SONORA Fetch foundation: yt-dlp source analysis, MP3 audio extraction via FFmpeg, foreground download service, progress/cancel notifications and MediaStore scan after download. Files are saved under `Downloads/SONORA`.
+## SONORA
 
-## Known limitations
+- Kotlin, Jetpack Compose, Material 3 and Media3.
+- MediaStore library scanning, album/artist/folder browsing, search, sorting and refresh.
+- Album artwork, metadata editing, favourites and playlists.
+- MediaSessionService playback with system media controls, audio focus, headset route handling and lock-screen integration.
+- Persistent Room data for favourites, playlists, listening history and the playback queue.
+- Editable playback queue and reorderable playlist tracks.
+- Seek, shuffle, repeat, playback speed and sleep timer.
+- Local LRC import and adjacent LRC discovery, timed lyrics and device equalizer.
+- Listening statistics, monthly summaries, light/dark themes and artwork-derived or fixed accent palettes.
 
-This is not yet release-ready. Storage is SharedPreferences rather than Room; playlists do not support drag reordering; queue restoration, folder browsing, advanced artwork extraction, full listening-time analytics, automated tests and signed release packaging remain future work. SONORA Fetch is an initial audio-only implementation and still needs device/network testing; source sites can change and may reject extraction. Equalizer support, foreground-service notifications, media indexing and background playback vary by device. The vinyl interaction and all system-inset behaviour need physical-device validation.
+## Athenaeum
 
-## Build an installable debug APK
+- Physical, digital and mixed-ownership catalogue entries with metadata, ratings, covers, notes and custom shelves.
+- Multi-file import, search, sorting, grid/list views, reading progress and yearly reading goal.
+- Reader support currently implemented for PDF, TXT, HTML, FB2, EPUB 2/3, legacy PalmDOC MOBI 6, RTF, Markdown and CBZ.
+- EPUB OPF spine ordering, NCX/EPUB3 table of contents, chapter navigation and local image/CSS inlining.
+- Bookmarks, manual passage annotations, Commonplace Book, reading-session statistics, PDF OCR and text-to-speech.
+- Optional ISBN metadata lookup, JSON archive export/restore and catalogue CSV export.
+- Three Android widgets: Continue Reading, library overview and random book.
 
-GitHub Actions is **manual-only**. It does not run on pushes or pull requests.
+## Important limitations
+
+This is an active development build, not a release-verified product.
+
+- The Athenaeum JSON backup contains catalogue/archive records and document URI references. It does **not** package the underlying ebook or cover binaries, and a restored URI may not be accessible on another device.
+- EPUB support is an offline in-app parser/renderer, not a complete Readium implementation; DRM, some EPUB resources and advanced pagination are not supported.
+- MOBI support is limited to legacy PalmDOC-compressed MOBI 6; AZW3/KF8 and CBR are not currently supported.
+- Passage annotations are entered manually; true text-selection highlighting and dictionary lookup are not yet implemented.
+- Cloud sync, OCR batch indexing, audio visualisation and automated unit/UI tests remain outstanding.
+- Physical-device verification is still required for background playback, widgets, OCR, TTS, reader formats, accessibility and Android-version differences.
+- ISBN lookup uses Google Books when the user explicitly requests a lookup; core libraries and playback remain local-first.
+
+## Build a debug APK
+
+GitHub Actions is **manual-only** (workflow_dispatch). Pushes and pull requests do not start builds.
 
 1. Open the repository's Actions tab.
-2. Select Android APK.
-3. Press Run workflow, choose the main branch, then confirm Run workflow.
-4. Wait for a green Success result.
-5. Open that run and download the SONORA-debug artifact.
-6. Extract the ZIP and install app-debug.apk.
+2. Select **Android APK**.
+3. Press **Run workflow** for the main branch.
+4. Wait for a successful run.
+5. Download and extract the **SONORA-debug** artifact.
+6. Install app-debug.apk on an Android device.
 
-This is a debug build, not a signed Play Store release. See docs/BUILD_AND_TEST.md.
+The debug APK is not a signed Play Store release. See docs/BUILD_AND_TEST.md.
 
-Third-party licensing: SONORA Fetch currently includes the GPL-3.0-licensed `youtubedl-android` and its FFmpeg companion. Read `THIRD_PARTY_NOTICES.md` before distributing builds; GPL obligations may apply to the combined application.
+## Third-party notices
+
+SONORA Fetch includes GPL-3.0-licensed yt-dlp Android and FFmpeg components. On-device OCR uses Google ML Kit Text Recognition. Review THIRD_PARTY_NOTICES.md and the relevant upstream licences before redistribution.
