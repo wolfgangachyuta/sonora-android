@@ -973,7 +973,7 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                 readerWebView = this
                 loadDataWithBaseURL(null, safeHtml, "text/html", "UTF-8", null)
             } }, update = { web ->
-                web.setBackgroundColor(if (dark) android.graphics.Color.DKGRAY else android.graphics.Color.rgb(233, 222, 198))
+                web.setBackgroundColor(if (dark) android.graphics.Color.rgb(23, 25, 22) else android.graphics.Color.rgb(247, 246, 241))
                 val safeHtml = themedContent.replace(Regex("(?is)<script\\b[^>]*>.*?</script>"), "")
                     .replace(Regex("(?i)\\s+on[a-z]+\\s*=\\s*(['\"]).*?\\1"), "")
                     .replace(Regex("(?i)href\\s*=\\s*(['\"])javascript:.*?\\1"), "")
