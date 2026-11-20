@@ -75,12 +75,18 @@ val AccentDeep = Accent
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { SonoraApp() }
+        setContent { SonoraApp(startInAthenaeum = intent.getBooleanExtra("open_athenaeum", false)) }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getBooleanExtra("open_athenaeum", false)) recreate()
     }
 }
 
 @Composable
-private fun SonoraApp() {
+private fun SonoraApp(startInAthenaeum: Boolean = false) {
     val context = LocalContext.current
     val preferences = remember { context.getSharedPreferences("sonora_library", Context.MODE_PRIVATE) }
     var darkMode by remember { mutableStateOf(preferences.getBoolean("dark_mode", false)) }
@@ -120,7 +126,7 @@ private fun SonoraApp() {
     var currentTrack by remember { mutableStateOf<AudioTrack?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
     var positionMs by remember { mutableStateOf(0L) }
-    var tab by remember { mutableStateOf("Listen") }
+    var tab by remember { mutableStateOf(if (startInAthenaeum) "Athenaeum" else "Listen") }
     var query by remember { mutableStateOf("") }
     var libraryFilter by remember { mutableStateOf("All songs") }
     var loading by remember { mutableStateOf(false) }
