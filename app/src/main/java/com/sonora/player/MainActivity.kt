@@ -3,9 +3,11 @@ package com.sonora.player
 import android.Manifest
 import android.app.Activity
 import android.content.pm.PackageManager
+import android.content.ContentValues
 import android.os.Build
 import android.os.Bundle
 import android.net.Uri
+import android.provider.MediaStore
 import android.content.ContentUris
 import android.content.Context
 import android.content.ContextWrapper
@@ -15,6 +17,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.IntentSenderRequest
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -130,6 +133,47 @@ private fun SonoraApp() {
     var lyricLines by remember { mutableStateOf(emptyList<LyricLine>()) }
     val fetchStatus by SonoraFetch.status.collectAsState()
 
+    var editingTrack by remember { mutableStateOf<AudioTrack?>(null) }
+    var pendingMetadataUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingMetadataValues by remember { mutableStateOf<ContentValues?>(null) }
+
+    val metadataWriteLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+        val target = pendingMetadataUri
+        val values = pendingMetadataValues
+        if (result.resultCode == Activity.RESULT_OK && target != null && values != null) {
+            runCatching { context.contentResolver.update(target, values, null, null) }
+                .onSuccess { loading = true }
+        }
+        pendingMetadataUri = null
+        pendingMetadataValues = null
+    }
+
+    fun saveMetadata(track: AudioTrack, metadata: EditableTrackMetadata) {
+        val uri = Uri.parse(track.uri)
+        val values = ContentValues().apply {
+            put(MediaStore.Audio.Media.TITLE, metadata.title.ifBlank { "Unknown title" })
+            put(MediaStore.Audio.Media.ARTIST, metadata.artist.ifBlank { "Unknown artist" })
+            put(MediaStore.Audio.Media.ALBUM, metadata.album.ifBlank { "Unknown album" })
+            put("album_artist", metadata.albumArtist)
+            put(MediaStore.Audio.Media.COMPOSER, metadata.composer)
+            put(MediaStore.Audio.Media.YEAR, metadata.year.toIntOrNull() ?: 0)
+            put(MediaStore.Audio.Media.TRACK, metadata.trackNumber.toIntOrNull() ?: 0)
+            put("disc_number", metadata.discNumber.toIntOrNull() ?: 0)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            pendingMetadataUri = uri
+            pendingMetadataValues = values
+            val request = MediaStore.createWriteRequest(context.contentResolver, listOf(uri))
+            metadataWriteLauncher.launch(IntentSenderRequest.Builder(request.intentSender).build())
+        } else {
+            runCatching { context.contentResolver.update(uri, values, null, null) }
+                .onSuccess { loading = true }
+                .onFailure {
+                    android.widget.Toast.makeText(context, "This file does not allow metadata changes.", android.widget.Toast.LENGTH_LONG).show()
+                }
+        }
+    }
+
     val lyricLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) runCatching { context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { LyricsRepository.parseLrc(it.readText()) } }.getOrNull()?.let { lyricLines = it }
     }
@@ -243,7 +287,13 @@ private fun SonoraApp() {
                 BottomNav(tab, ink, muted) { tab = it }
             }
             if (tab == "Now Playing" && currentTrack != null) {
-                NowPlayingOverlay(currentTrack!!, isPlaying, positionMs, player.duration.takeIf { it > 0 } ?: currentTrack!!.durationMs, ink, paper, panel, muted, darkMode, { if (player.isPlaying) player.pause() else player.play() }, { player.seekToPreviousMediaItem() }, { player.seekToNextMediaItem() }, { player.seekTo(it) }, { tab = "Listen" }, shuffle, { shuffle = it; player.shuffleModeEnabled = it }, repeatMode, { repeatMode = it; player.repeatMode = it }, currentTrack!!.id.toString() in favorites, { toggleFavorite(currentTrack!!) }, { tab = "Lyrics" })
+                NowPlayingOverlay(currentTrack!!, isPlaying, positionMs, player.duration.takeIf { it > 0 } ?: currentTrack!!.durationMs, ink, paper, panel, muted, darkMode, { if (player.isPlaying) player.pause() else player.play() }, { player.seekToPreviousMediaItem() }, { player.seekToNextMediaItem() }, { player.seekTo(it) }, { tab = "Listen" }, shuffle, { shuffle = it; player.shuffleModeEnabled = it }, repeatMode, { repeatMode = it; player.repeatMode = it }, currentTrack!!.id.toString() in favorites, { toggleFavorite(currentTrack!!) }, { tab = "Lyrics" }, { editingTrack = currentTrack }, { tab = "Equalizer" })
+            }
+            editingTrack?.let { track ->
+                TrackMetadataEditor(track, onDismiss = { editingTrack = null }, onSave = { metadata ->
+                    saveMetadata(track, metadata)
+                    editingTrack = null
+                })
             }
         }
     }
