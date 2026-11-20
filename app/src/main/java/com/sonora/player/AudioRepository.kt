@@ -18,7 +18,8 @@ data class AudioTrack(
     val year: Int = 0,
     val trackNumber: Int = 0,
     val discNumber: Int = 0,
-    val folderPath: String = ""
+    val folderPath: String = "",
+    val filePath: String = ""
 )
 
 class AudioRepository(private val context: Context) {
@@ -74,7 +75,8 @@ class AudioRepository(private val context: Context) {
                     year = if (yearCol >= 0) cursor.getInt(yearCol) else 0,
                     trackNumber = if (trackCol >= 0) cursor.getInt(trackCol) else 0,
                     discNumber = if (discCol >= 0) cursor.getInt(discCol) else 0,
-                    folderPath = if (pathCol >= 0) cursor.getString(pathCol)?.substringBeforeLast('/') ?: "" else ""
+                    folderPath = if (pathCol >= 0) cursor.getString(pathCol)?.substringBeforeLast('/') ?: "" else "",
+                    filePath = if (pathCol >= 0) cursor.getString(pathCol).orEmpty() else ""
                 )
             }
         }
