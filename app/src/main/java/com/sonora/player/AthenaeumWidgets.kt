@@ -70,13 +70,23 @@ class AthenaeumRandomWidgetProvider : AthenaeumBaseWidgetProvider() {
     }
 }
 
+class AthenaeumFavoritesWidgetProvider : AthenaeumBaseWidgetProvider() {
+    override fun content(books: List<AthenaeumBook>): WidgetCopy {
+        val favorites = books.filter { it.favorite }.sortedByDescending { it.lastOpenedAt }
+        val first = favorites.firstOrNull()
+        return if (first == null) WidgetCopy("ATHENAEUM · FAVOURITES", "No favourites yet", "Save books you want to return to.")
+        else WidgetCopy("ATHENAEUM · FAVOURITES", first.title, "${favorites.size} saved books · ${first.author}")
+    }
+}
+
 object AthenaeumWidgetUpdater {
     fun refresh(context: Context) {
         val manager = AppWidgetManager.getInstance(context)
         listOf(
             AthenaeumContinueWidgetProvider::class.java,
             AthenaeumOverviewWidgetProvider::class.java,
-            AthenaeumRandomWidgetProvider::class.java
+            AthenaeumRandomWidgetProvider::class.java,
+            AthenaeumFavoritesWidgetProvider::class.java
         ).forEach { provider ->
             val component = ComponentName(context, provider)
             val ids = manager.getAppWidgetIds(component)
