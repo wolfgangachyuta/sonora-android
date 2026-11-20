@@ -11,7 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private data class WidgetCopy(val label: String, val title: String, val subtitle: String, val progress: Int = 0, val showProgress: Boolean = false)
+data class WidgetCopy(val label: String, val title: String, val subtitle: String, val progress: Int = 0, val showProgress: Boolean = false)
 
 abstract class AthenaeumBaseWidgetProvider : AppWidgetProvider() {
     protected abstract fun content(books: List<AthenaeumBook>): WidgetCopy
