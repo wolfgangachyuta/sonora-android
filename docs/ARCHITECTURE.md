@@ -34,6 +34,7 @@ AudioRepository queries MediaStore for track identifiers, title, artist, album, 
 
 - LyricsRepository parses local LRC files and discovers an adjacent LRC file for a track.
 - EqualizerController wraps the Android system equalizer for the active playback session.
+- AudioVisualizerPage uses Android Visualizer FFT capture with an explicit runtime RECORD_AUDIO permission request; it does not record or save audio.
 - AudioTagWriter writes supported embedded audio metadata.
 - PlaylistStore remains as a compatibility/migration layer while Room is the durable store.
 - SonoraFetch and SonoraFetchService provide the optional authorised-media download workflow.
