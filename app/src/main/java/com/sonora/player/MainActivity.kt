@@ -135,41 +135,15 @@ private fun SonoraApp() {
     val fetchStatus by SonoraFetch.status.collectAsState()
 
     var editingTrack by remember { mutableStateOf<AudioTrack?>(null) }
-    var pendingMetadataUri by remember { mutableStateOf<Uri?>(null) }
-    var pendingMetadataValues by remember { mutableStateOf<ContentValues?>(null) }
+    var pendingTagTrack by remember { mutableStateOf<AudioTrack?>(null) }
+    var pendingTagMetadata by remember { mutableStateOf<EditableTrackMetadata?>(null) }
+    val metadataScope = rememberCoroutineScope()
 
-    val metadataWriteLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
-        val target = pendingMetadataUri
-        val values = pendingMetadataValues
-        if (result.resultCode == Activity.RESULT_OK && target != null && values != null) {
-            runCatching { context.contentResolver.update(target, values, null, null) }
-                .onSuccess {
-                    loading = true
-                    android.widget.Toast.makeText(context, "Track information updated.", android.widget.Toast.LENGTH_SHORT).show()
-                }
-                .onFailure {
-                    android.widget.Toast.makeText(context, "Could not update this track.", android.widget.Toast.LENGTH_LONG).show()
-                }
+    suspend fun persistEmbeddedTags(track: AudioTrack, metadata: EditableTrackMetadata) {
+        withContext(Dispatchers.IO) {
+            AudioTagWriter.write(context, track.uri, metadata)
         }
-        pendingMetadataUri = null
-        pendingMetadataValues = null
-    }
-
-    val legacyMetadataPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        val target = pendingMetadataUri
-        val values = pendingMetadataValues
-        if (granted && target != null && values != null) {
-            runCatching { context.contentResolver.update(target, values, null, null) }
-                .onSuccess { loading = true }
-                .onFailure { android.widget.Toast.makeText(context, "Could not update this track.", android.widget.Toast.LENGTH_LONG).show() }
-        }
-        pendingMetadataUri = null
-        pendingMetadataValues = null
-    }
-
-    fun saveMetadata(track: AudioTrack, metadata: EditableTrackMetadata) {
-        val uri = Uri.parse(track.uri)
-        val values = ContentValues().apply {
+        val indexedValues = ContentValues().apply {
             put(MediaStore.Audio.Media.TITLE, metadata.title.ifBlank { "Unknown title" })
             put(MediaStore.Audio.Media.ARTIST, metadata.artist.ifBlank { "Unknown artist" })
             put(MediaStore.Audio.Media.ALBUM, metadata.album.ifBlank { "Unknown album" })
@@ -179,34 +153,85 @@ private fun SonoraApp() {
             put(MediaStore.Audio.Media.TRACK, metadata.trackNumber.toIntOrNull() ?: 0)
             put("disc_number", metadata.discNumber.toIntOrNull() ?: 0)
         }
+        runCatching { context.contentResolver.update(Uri.parse(track.uri), indexedValues, null, null) }
+        loading = true
+        android.widget.Toast.makeText(context, "Embedded audio tags saved.", android.widget.Toast.LENGTH_SHORT).show()
+    }
+
+    val metadataWriteLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+        val track = pendingTagTrack
+        val metadata = pendingTagMetadata
+        pendingTagTrack = null
+        pendingTagMetadata = null
+        if (result.resultCode == Activity.RESULT_OK && track != null && metadata != null) {
+            metadataScope.launch {
+                runCatching { persistEmbeddedTags(track, metadata) }
+                    .onFailure { error ->
+                        android.widget.Toast.makeText(
+                            context,
+                            error.message ?: "Could not write tags to this audio file.",
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    }
+            }
+        } else {
+            android.widget.Toast.makeText(context, "Audio tag edit cancelled.", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val legacyMetadataPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val track = pendingTagTrack
+        val metadata = pendingTagMetadata
+        pendingTagTrack = null
+        pendingTagMetadata = null
+        if (granted && track != null && metadata != null) {
+            metadataScope.launch {
+                runCatching { persistEmbeddedTags(track, metadata) }
+                    .onFailure { error ->
+                        android.widget.Toast.makeText(
+                            context,
+                            error.message ?: "Could not write tags to this audio file.",
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    }
+            }
+        } else {
+            android.widget.Toast.makeText(context, "Storage permission is required to edit this file.", android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+
+    fun saveMetadata(track: AudioTrack, metadata: EditableTrackMetadata) {
+        val uri = Uri.parse(track.uri)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            pendingMetadataUri = uri
-            pendingMetadataValues = values
+            pendingTagTrack = track
+            pendingTagMetadata = metadata
             val request = MediaStore.createWriteRequest(context.contentResolver, listOf(uri))
             metadataWriteLauncher.launch(IntentSenderRequest.Builder(request.intentSender).build())
+        } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+        ) {
+            pendingTagTrack = track
+            pendingTagMetadata = metadata
+            legacyMetadataPermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
         } else {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
-                ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
-            ) {
-                pendingMetadataUri = uri
-                pendingMetadataValues = values
-                legacyMetadataPermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                return
-            }
-            try {
-                context.contentResolver.update(uri, values, null, null)
-                loading = true
-                android.widget.Toast.makeText(context, "Track information updated.", android.widget.Toast.LENGTH_SHORT).show()
-            } catch (error: SecurityException) {
-                val recoverable = error as? android.app.RecoverableSecurityException
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && recoverable != null) {
-                    pendingMetadataUri = uri
-                    pendingMetadataValues = values
-                    metadataWriteLauncher.launch(
-                        IntentSenderRequest.Builder(recoverable.userAction.actionIntent.intentSender).build()
-                    )
-                } else {
-                    android.widget.Toast.makeText(context, "Android does not allow this file to be edited.", android.widget.Toast.LENGTH_LONG).show()
+            metadataScope.launch {
+                try {
+                    persistEmbeddedTags(track, metadata)
+                } catch (error: Exception) {
+                    val recoverable = error as? android.app.RecoverableSecurityException
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && recoverable != null) {
+                        pendingTagTrack = track
+                        pendingTagMetadata = metadata
+                        metadataWriteLauncher.launch(
+                            IntentSenderRequest.Builder(recoverable.userAction.actionIntent.intentSender).build()
+                        )
+                    } else {
+                        android.widget.Toast.makeText(
+                            context,
+                            error.message ?: "Could not write tags to this audio file.",
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }
             }
         }
