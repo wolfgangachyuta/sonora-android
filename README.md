@@ -27,7 +27,7 @@ SONORA and Athenaeum have separate launcher entries, while sharing the same Andr
 - EPUB OPF spine ordering, NCX/EPUB3 table of contents, chapter navigation and local image/CSS inlining.
 - Bookmarks, selected-passage highlights for EPUB/HTML, manual annotations, Commonplace Book, reading-session statistics, PDF OCR and text-to-speech.
 - Optional ISBN metadata lookup, JSON archive export/restore, portable ZIP backup/restore with accessible ebook and cover files, and catalogue CSV export.
-- Three Android widgets: Continue Reading, library overview and random book.
+- Four Android widgets: Continue Reading, library overview, random book and favourites.
 
 ## Important limitations
 
