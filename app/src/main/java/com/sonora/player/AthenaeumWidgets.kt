@@ -15,14 +15,17 @@ import kotlinx.coroutines.withContext
 data class WidgetCopy(val label: String, val title: String, val subtitle: String, val progress: Int = 0, val showProgress: Boolean = false)
 
 abstract class AthenaeumBaseWidgetProvider : AppWidgetProvider() {
-    protected abstract fun content(books: List<AthenaeumBook>): WidgetCopy
+    protected abstract fun content(books: List<AthenaeumBook>, shelves: List<AthenaeumShelf>, assignments: List<AthenaeumBookShelf>): WidgetCopy
 
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
         val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val books = AthenaeumDatabase.get(context).dao().backupBooks()
-                val copy = content(books)
+                val dao = AthenaeumDatabase.get(context).dao()
+                val books = dao.backupBooks()
+                val shelves = dao.backupShelves()
+                val assignments = dao.backupBookShelves()
+                val copy = content(books, shelves, assignments)
                 withContext(Dispatchers.Main) {
                     ids.forEach { id ->
                         val views = RemoteViews(context.packageName, R.layout.athenaeum_widget).apply {
@@ -47,7 +50,7 @@ abstract class AthenaeumBaseWidgetProvider : AppWidgetProvider() {
 }
 
 class AthenaeumContinueWidgetProvider : AthenaeumBaseWidgetProvider() {
-    override fun content(books: List<AthenaeumBook>): WidgetCopy {
+    override fun content(books: List<AthenaeumBook>, shelves: List<AthenaeumShelf>, assignments: List<AthenaeumBookShelf>): WidgetCopy {
         val book = books.filter { it.status == "Currently Reading" }.maxByOrNull { it.lastOpenedAt }
         return if (book == null) WidgetCopy("ATHENAEUM · CONTINUE READING", "Nothing in progress", "Open your library to choose a book.")
         else WidgetCopy("ATHENAEUM · CONTINUE READING", book.title, book.author.ifBlank { "Unknown author" } + " · " + book.progress + "% read", book.progress, true)
@@ -55,7 +58,7 @@ class AthenaeumContinueWidgetProvider : AthenaeumBaseWidgetProvider() {
 }
 
 class AthenaeumOverviewWidgetProvider : AthenaeumBaseWidgetProvider() {
-    override fun content(books: List<AthenaeumBook>): WidgetCopy {
+    override fun content(books: List<AthenaeumBook>, shelves: List<AthenaeumShelf>, assignments: List<AthenaeumBookShelf>): WidgetCopy {
         val finished = books.count { it.status == "Finished" }
         val active = books.count { it.status == "Currently Reading" }
         return WidgetCopy("ATHENAEUM · YOUR LIBRARY", "${books.size} books", "$finished finished · $active in progress")
@@ -63,7 +66,7 @@ class AthenaeumOverviewWidgetProvider : AthenaeumBaseWidgetProvider() {
 }
 
 class AthenaeumRandomWidgetProvider : AthenaeumBaseWidgetProvider() {
-    override fun content(books: List<AthenaeumBook>): WidgetCopy {
+    override fun content(books: List<AthenaeumBook>, shelves: List<AthenaeumShelf>, assignments: List<AthenaeumBookShelf>): WidgetCopy {
         val book = books.randomOrNull()
         return if (book == null) WidgetCopy("ATHENAEUM · RANDOM PICK", "Your shelves are waiting", "Add a book to begin.")
         else WidgetCopy("ATHENAEUM · RANDOM PICK", book.title, book.author.ifBlank { book.status })
@@ -71,11 +74,21 @@ class AthenaeumRandomWidgetProvider : AthenaeumBaseWidgetProvider() {
 }
 
 class AthenaeumFavoritesWidgetProvider : AthenaeumBaseWidgetProvider() {
-    override fun content(books: List<AthenaeumBook>): WidgetCopy {
+    override fun content(books: List<AthenaeumBook>, shelves: List<AthenaeumShelf>, assignments: List<AthenaeumBookShelf>): WidgetCopy {
         val favorites = books.filter { it.favorite }.sortedByDescending { it.lastOpenedAt }
         val first = favorites.firstOrNull()
         return if (first == null) WidgetCopy("ATHENAEUM · FAVOURITES", "No favourites yet", "Save books you want to return to.")
         else WidgetCopy("ATHENAEUM · FAVOURITES", first.title, "${favorites.size} saved books · ${first.author}")
+    }
+}
+
+class AthenaeumShelfWidgetProvider : AthenaeumBaseWidgetProvider() {
+    override fun content(books: List<AthenaeumBook>, shelves: List<AthenaeumShelf>, assignments: List<AthenaeumBookShelf>): WidgetCopy {
+        val shelf = shelves.firstOrNull()
+        if (shelf == null) return WidgetCopy("ATHENAEUM · YOUR SHELF", "No custom shelves", "Create a shelf in your library.")
+        val count = assignments.count { it.shelfId == shelf.id }
+        val firstBook = books.firstOrNull { book -> assignments.any { it.shelfId == shelf.id && it.bookId == book.id } }
+        return WidgetCopy("ATHENAEUM · CUSTOM SHELF", shelf.name, "$count books" + (firstBook?.let { " · " + it.title }.orEmpty()))
     }
 }
 
@@ -86,7 +99,8 @@ object AthenaeumWidgetUpdater {
             AthenaeumContinueWidgetProvider::class.java,
             AthenaeumOverviewWidgetProvider::class.java,
             AthenaeumRandomWidgetProvider::class.java,
-            AthenaeumFavoritesWidgetProvider::class.java
+            AthenaeumFavoritesWidgetProvider::class.java,
+            AthenaeumShelfWidgetProvider::class.java
         ).forEach { provider ->
             val component = ComponentName(context, provider)
             val ids = manager.getAppWidgetIds(component)
