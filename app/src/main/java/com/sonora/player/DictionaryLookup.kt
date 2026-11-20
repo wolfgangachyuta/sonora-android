@@ -27,7 +27,7 @@ object DictionaryLookup {
                         if (definition.isNotBlank()) add((if (part.isBlank()) "" else "$part · ") + definition)
                     }
                 }
-            }.take(4).joinToString("\n\n").ifBlank { null }
+            }.take(4).joinToString("\n\n").takeIf { it.isNotBlank() }
         } finally {
             connection.disconnect()
         }
