@@ -25,7 +25,7 @@ SONORA and Athenaeum have separate launcher entries, while sharing the same Andr
 - Multi-file import, search, sorting, grid/list views, reading progress and yearly reading goal.
 - Reader support currently implemented for PDF, TXT, HTML, FB2, EPUB 2/3, legacy PalmDOC MOBI 6, RTF, Markdown and CBZ.
 - EPUB OPF spine ordering, NCX/EPUB3 table of contents, chapter navigation and local image/CSS inlining.
-- Bookmarks, manual passage annotations, Commonplace Book, reading-session statistics, PDF OCR and text-to-speech.
+- Bookmarks, selected-passage highlights for EPUB/HTML, manual annotations, Commonplace Book, reading-session statistics, PDF OCR and text-to-speech.
 - Optional ISBN metadata lookup, JSON archive export/restore, portable ZIP backup/restore with accessible ebook and cover files, and catalogue CSV export.
 - Three Android widgets: Continue Reading, library overview and random book.
 
@@ -36,7 +36,7 @@ This is an active development build, not a release-verified product.
 - JSON-only Athenaeum archives preserve catalogue/archive records and URI references. Use the portable ZIP backup to package accessible ebook and cover files; files the app can no longer read are retained as URI references only.
 - EPUB support is an offline in-app parser/renderer, not a complete Readium implementation; DRM, some EPUB resources and advanced pagination are not supported.
 - MOBI support is limited to legacy PalmDOC-compressed MOBI 6; AZW3/KF8 and CBR are not currently supported.
-- Passage annotations are entered manually; true text-selection highlighting and dictionary lookup are not yet implemented.
+- Passage selection and persistent highlights are supported in WebView-based EPUB/HTML content; PDF-page highlights and dictionary lookup are not yet implemented.
 - Cloud sync, OCR batch indexing and broader automated UI/integration tests remain outstanding. The optional live visualizer still needs device-specific verification. Initial unit tests cover Markdown, RTF and legacy MOBI utility paths; they have not been run in this session.
 - Physical-device verification is still required for background playback, widgets, OCR, TTS, reader formats, accessibility and Android-version differences.
 - ISBN lookup uses Google Books when the user explicitly requests a lookup; core libraries and playback remain local-first.
