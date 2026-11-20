@@ -45,6 +45,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.room.*
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.Dispatchers
@@ -767,6 +770,9 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
     var comicPage by remember(book.id) { mutableIntStateOf(book.lastLocation.coerceAtLeast(0)) }
     var epubChapterIndex by remember(book.id) { mutableIntStateOf(book.progress.coerceIn(0, 100)) }
     var showToc by remember { mutableStateOf(false) }
+    var ocrText by remember { mutableStateOf("") }
+    var ocrError by remember { mutableStateOf("") }
+    var showOcr by remember { mutableStateOf(false) }
     val sessionStartedAt = remember(book.id) { System.currentTimeMillis() }
 
     LaunchedEffect(book.id, showBookmarks) {
@@ -867,6 +873,12 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
             }
             IconButton(onClick = { dark = !dark }) { Icon(Icons.Rounded.Contrast, "Toggle reading theme", tint = readerForeground) }
             if (ext == "epub") IconButton(onClick = { showToc = true }) { Icon(Icons.Rounded.List, "Table of contents", tint = readerForeground) }
+            if (ext == "pdf" && bitmap != null) IconButton(onClick = {
+                val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+                recognizer.process(InputImage.fromBitmap(bitmap!!, 0))
+                    .addOnSuccessListener { result -> ocrText = result.text; ocrError = ""; showOcr = true; recognizer.close() }
+                    .addOnFailureListener { error -> ocrError = error.message ?: "OCR could not read this page."; showOcr = true; recognizer.close() }
+            }) { Icon(Icons.Rounded.DocumentScanner, "Extract text from PDF page", tint = readerForeground) }
             IconButton(onClick = { showBookmarks = true }) { Icon(Icons.Rounded.Bookmarks, "Bookmarks", tint = readerForeground) }
             IconButton(onClick = { annotationQuote = ""; annotationNote = ""; showAnnotationEditor = true }) { Icon(Icons.Rounded.Highlight, "Add highlight or annotation", tint = readerForeground) }
             IconButton(onClick = {
@@ -959,6 +971,21 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                 TextButton(onClick = { scope.launch { dao.updateProgress(book.id, if (textScroll.maxValue > 0) (textScroll.value * 100 / textScroll.maxValue).coerceIn(0, 100) else 0, textScroll.value) } }) { Text("SAVE POSITION", color = readerForeground) }
             }
         }
+    }
+    if (showOcr) {
+        AlertDialog(
+            onDismissRequest = { showOcr = false },
+            title = { Text("Recognised text · page ${page + 1}") },
+            text = {
+                Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                    if (ocrError.isNotBlank()) Text(ocrError, color = Color(0xFF9B4B45))
+                    else androidx.compose.foundation.text.selection.SelectionContainer {
+                        Text(ocrText.ifBlank { "No readable text was found on this page." }, color = readerForeground, fontSize = 13.sp, lineHeight = 19.sp)
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showOcr = false }) { Text("CLOSE") } }
+        )
     }
     if (showToc && epubDocument != null) {
         AlertDialog(
