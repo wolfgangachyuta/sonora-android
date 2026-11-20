@@ -308,7 +308,8 @@ private fun SonoraApp() {
                 TopBrand(ink, muted, onSearch = { tab = "Search" }, onFavourites = { tab = "Favourites" }, onSettings = { tab = "Settings" }, onBooks = { tab = "Athenaeum" })
                 AnimatedContent(tab, label = "main-content", modifier = Modifier.weight(1f)) { destination ->
                     when (destination) {
-                        "Athenaeum" -> AthenaeumScreen()\n                        "Library" -> LibraryPage(tracks, loading, hasPermission, query, { query = it }, { libraryFilter = it }, libraryFilter, ::requestScan, ::play, currentTrack, favorites, ::toggleFavorite, ink, paper, panel, muted)
+                        "Athenaeum" -> AthenaeumScreen()
+                        "Library" -> LibraryPage(tracks, loading, hasPermission, query, { query = it }, { libraryFilter = it }, libraryFilter, ::requestScan, ::play, currentTrack, favorites, ::toggleFavorite, ink, paper, panel, muted)
                         "Albums" -> GroupedPage("Albums", tracks.groupBy { it.album }.toList().sortedBy { it.first.lowercase() }, { it.second.firstOrNull()?.artist ?: "Unknown artist" }, { group -> group.second.firstOrNull()?.let { startQueue(group.second, it) } }, { tab = "Artists" }, ink, panel, muted)
                         "Artists" -> GroupedPage("Artists", tracks.groupBy { it.artist }.toList().sortedBy { it.first.lowercase() }, { "${it.second.size} tracks" }, { group -> group.second.firstOrNull()?.let { startQueue(group.second, it) } }, { tab = "Albums" }, ink, panel, muted)
                         "Search" -> SearchPage(tracks, query, { query = it }, ::play, currentTrack, ink, panel, muted)
@@ -372,7 +373,8 @@ private fun TopBrand(ink: Color, muted: Color, onSearch: () -> Unit, onFavourite
             Text("SONORA", fontSize = 19.sp, fontWeight = FontWeight.Black, letterSpacing = 4.sp, color = ink)
             Text("THE ART OF LISTENING", fontSize = 8.sp, letterSpacing = 1.6.sp, color = muted)
         }
-        IconButton(onClick = onBooks) { Icon(Icons.Rounded.MenuBook, "Open Athenaeum book library", tint = ink) }\n        IconButton(onClick = onSearch) { Icon(Icons.Rounded.Search, "Search your library", tint = ink) }
+        IconButton(onClick = onBooks) { Icon(Icons.Rounded.MenuBook, "Open Athenaeum book library", tint = ink) }
+        IconButton(onClick = onSearch) { Icon(Icons.Rounded.Search, "Search your library", tint = ink) }
         IconButton(onClick = onFavourites) { Icon(Icons.Rounded.FavoriteBorder, "Favourite tracks", tint = ink) }
         IconButton(onClick = onSettings) { Icon(Icons.Rounded.Tune, "Settings", tint = ink) }
     }
