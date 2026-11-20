@@ -12,8 +12,8 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 /**
- * Versioned, portable JSON archive. File URIs are preserved as references;
- * the actual ebook files remain in their original Android document locations.
+ * Versioned JSON and portable ZIP archives for Athenaeum. JSON-only exports
+ * preserve URI references; ZIP archives package files that the app can still read.
  */
 object AthenaeumBackup {
     suspend fun writePortableZip(context: Context, dao: AthenaeumDao, output: OutputStream) {
