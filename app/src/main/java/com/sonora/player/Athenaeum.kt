@@ -314,20 +314,31 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
             val ext = name.substringAfterLast('.', "").lowercase()
             if (ext in setOf("epub", "pdf", "txt", "html", "htm", "fb2", "mobi", "rtf", "md", "markdown", "cbz")) {
                 scope.launch {
-                    val bookId = dao.saveBook(AthenaeumBook(title = name.substringBeforeLast('.', name), ownership = "Digital", fileUri = uri.toString(), fileType = ext, status = "Want to Read"))
-                    if (ext == "epub") {
-                        val cover = withContext(Dispatchers.IO) {
-                            runCatching {
-                                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: return@runCatching null
-                                EpubParser.parse(bytes).coverImage
-                            }.getOrNull()
-                        }
-                        if (cover != null) withContext(Dispatchers.IO) {
-                            val directory = java.io.File(context.filesDir, "athenaeum_covers").apply { mkdirs() }
-                            val file = java.io.File(directory, "$bookId.cover")
-                            file.writeBytes(cover)
-                            dao.updateCover(bookId, Uri.fromFile(file).toString())
-                        }
+                    val epubDocument = if (ext == "epub") withContext(Dispatchers.IO) {
+                        runCatching {
+                            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: error("Could not read EPUB")
+                            EpubParser.parse(bytes)
+                        }.getOrNull()
+                    } else null
+                    val bookId = dao.saveBook(
+                        AthenaeumBook(
+                            title = epubDocument?.title?.ifBlank { name.substringBeforeLast('.', name) } ?: name.substringBeforeLast('.', name),
+                            author = epubDocument?.author.orEmpty(),
+                            publisher = epubDocument?.publisher.orEmpty(),
+                            publicationYear = epubDocument?.publicationYear.orEmpty(),
+                            isbn = epubDocument?.isbn.orEmpty(),
+                            genre = epubDocument?.subject.orEmpty(),
+                            language = epubDocument?.language.orEmpty(),
+                            description = epubDocument?.description.orEmpty(),
+                            ownership = "Digital", fileUri = uri.toString(), fileType = ext, status = "Want to Read"
+                        )
+                    )
+                    val cover = epubDocument?.coverImage
+                    if (cover != null) withContext(Dispatchers.IO) {
+                        val directory = java.io.File(context.filesDir, "athenaeum_covers").apply { mkdirs() }
+                        val file = java.io.File(directory, "$bookId.cover")
+                        file.writeBytes(cover)
+                        dao.updateCover(bookId, Uri.fromFile(file).toString())
                     }
                 }
             } else message = "This format is not supported by the current reader: .$ext"
