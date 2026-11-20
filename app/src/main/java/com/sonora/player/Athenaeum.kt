@@ -301,6 +301,15 @@ private fun BookEditDialog(book: AthenaeumBook, shelves: List<AthenaeumShelf>, o
     var status by remember(book.id) { mutableStateOf(book.status) }
     var ownership by remember(book.id) { mutableStateOf(book.ownership) }
     var notes by remember(book.id) { mutableStateOf(book.notes) }
+    var coverUri by remember(book.id) { mutableStateOf(book.coverUri) }
+    var rating by remember(book.id) { mutableStateOf(book.rating.toString()) }
+    val context = LocalContext.current
+    val coverPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching { context.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            coverUri = uri.toString()
+        }
+    }
     val chosen = remember(book.id) { mutableStateListOf<Long>() }
     AlertDialog(onDismissRequest = onDismiss, containerColor = AthenaIvory,
         title = { Text(if (book.id == 0L) "Add to Athenaeum" else "Edit volume", color = AthenaWalnut, fontFamily = FontFamily.Serif) },
@@ -310,9 +319,12 @@ private fun BookEditDialog(book: AthenaeumBook, shelves: List<AthenaeumShelf>, o
                 field("Title", title, { title = it }); field("Author", author, { author = it }); field("Publisher", publisher, { publisher = it })
                 field("Publication year", year, { year = it }); field("ISBN", isbn, { isbn = it }); field("Genre", genre, { genre = it })
                 field("Language", language, { language = it }); field("Description", description, { description = it }); field("Personal notes", notes, { notes = it })
+                field("Personal rating (0–5)", rating, { rating = it })
+                OutlinedButton(onClick = { coverPicker.launch(arrayOf("image/*")) }) { Icon(Icons.Rounded.Image, null); Spacer(Modifier.width(6.dp)); Text(if (coverUri.isBlank()) "CHOOSE COVER IMAGE" else "CHANGE COVER IMAGE") }
+                Text(if (coverUri.isBlank()) "No cover selected" else "Custom cover attached", color = AthenaGreen, fontSize = 10.sp)
                 Text("READING STATUS", color = AthenaWalnut, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    listOf("Want to Read", "Currently Reading", "Finished").forEach { s ->
+                    listOf("Want to Read", "Currently Reading", "Finished", "Paused", "Abandoned").forEach { s ->
                         FilterChip(selected = status == s, onClick = { status = s }, label = { Text(s, fontSize = 9.sp) })
                     }
                 }
@@ -330,7 +342,7 @@ private fun BookEditDialog(book: AthenaeumBook, shelves: List<AthenaeumShelf>, o
             }
         },
         confirmButton = { TextButton(onClick = {
-            if (title.isNotBlank()) onSave(book.copy(title = title.trim(), author = author.trim(), publisher = publisher, publicationYear = year, isbn = isbn, genre = genre, language = language, description = description, status = status, ownership = ownership, notes = notes), chosen.toList())
+            if (title.isNotBlank()) onSave(book.copy(title = title.trim(), author = author.trim(), publisher = publisher, publicationYear = year, isbn = isbn, genre = genre, language = language, description = description, status = status, ownership = ownership, notes = notes, coverUri = coverUri, rating = rating.toFloatOrNull()?.coerceIn(0f, 5f) ?: 0f), chosen.toList())
         }) { Text("SAVE", color = AthenaGreen) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("CANCEL") } }
     )
