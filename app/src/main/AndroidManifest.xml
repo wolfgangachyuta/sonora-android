@@ -41,6 +41,10 @@
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/athenaeum_favorites_widget" />
         </receiver>
+        <receiver android:name=".AthenaeumShelfWidgetProvider" android:exported="true">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/athenaeum_shelf_widget" />
+        </receiver>
         <activity
             android:name=".AthenaeumLauncherActivity"
             android:exported="true"
