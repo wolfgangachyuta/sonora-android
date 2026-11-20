@@ -2,8 +2,6 @@ package com.sonora.player
 
 import android.content.Context
 import androidx.room.*
-import androidx.room.migration.Migration
-import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Entity(tableName = "sonora_favorites")
 data class SonoraFavorite(@PrimaryKey val trackId: String, val addedAt: Long = System.currentTimeMillis())
@@ -38,6 +36,8 @@ interface SonoraDao {
 
     @Query("SELECT * FROM sonora_playlists ORDER BY createdAt")
     suspend fun playlists(): List<SonoraPlaylist>
+    @Query("DELETE FROM sonora_playlists")
+    suspend fun clearPlaylists()
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun savePlaylist(item: SonoraPlaylist)
     @Insert(onConflict = OnConflictStrategy.REPLACE)
