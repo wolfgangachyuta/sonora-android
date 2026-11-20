@@ -710,6 +710,8 @@ private fun BookEditDialog(book: AthenaeumBook, shelves: List<AthenaeumShelf>, o
     var confirmDelete by remember(book.id) { mutableStateOf(false) }
     var lookupLoading by remember { mutableStateOf(false) }
     var lookupMessage by remember { mutableStateOf("") }
+    var dictionaryDefinition by remember { mutableStateOf("") }
+    var dictionaryLoading by remember { mutableStateOf(false) }
     val lookupScope = rememberCoroutineScope()
     val context = LocalContext.current
     val coverPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -1105,7 +1107,18 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Save a passage and your own note. Copy the passage into the first field.", color = readerForeground, fontSize = 12.sp)
-                    OutlinedTextField(annotationQuote, { annotationQuote = it }, label = { Text("Passage / quotation") }, minLines = 2)
+                    OutlinedTextField(annotationQuote, { annotationQuote = it; dictionaryDefinition = "" }, label = { Text("Passage / quotation") }, minLines = 2)
+                    val selectedWord = annotationQuote.trim()
+                    if (selectedWord.isNotBlank() && selectedWord.none { it.isWhitespace() } && selectedWord.all { it.isLetter() }) {
+                        TextButton(enabled = !dictionaryLoading, onClick = {
+                            lookupScope.launch {
+                                dictionaryLoading = true
+                                dictionaryDefinition = withContext(Dispatchers.IO) { runCatching { DictionaryLookup.define(selectedWord) }.getOrNull() } ?: "No definition found."
+                                dictionaryLoading = false
+                            }
+                        }) { Text(if (dictionaryLoading) "LOOKING UP…" else "DEFINE SELECTED WORD") }
+                    }
+                    if (dictionaryDefinition.isNotBlank()) Text(dictionaryDefinition, color = readerForeground, fontSize = 12.sp, lineHeight = 17.sp)
                     OutlinedTextField(annotationNote, { annotationNote = it }, label = { Text("Your note (optional)") }, minLines = 2)
                 }
             },
