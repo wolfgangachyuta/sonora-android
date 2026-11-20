@@ -380,6 +380,7 @@ private fun SonoraApp() {
                         "Athenaeum" -> AthenaeumScreen(onBack = { tab = "Listen" })
                         "Library" -> LibraryPage(tracks, loading, hasPermission, query, { query = it }, { libraryFilter = it }, libraryFilter, ::requestScan, ::play, currentTrack, favorites, ::toggleFavorite, ink, paper, panel, muted)
                         "Albums" -> GroupedPage("Albums", tracks.groupBy { it.album }.toList().sortedBy { it.first.lowercase() }, { it.second.firstOrNull()?.artist ?: "Unknown artist" }, { group -> group.second.firstOrNull()?.let { startQueue(group.second, it) } }, { tab = "Artists" }, ink, panel, muted)
+                        "Folders" -> FolderPage(tracks, currentTrack, { track, folderTracks -> startQueue(folderTracks, track) }, ink, panel, muted)
                         "Artists" -> GroupedPage("Artists", tracks.groupBy { it.artist }.toList().sortedBy { it.first.lowercase() }, { "${it.second.size} tracks" }, { group -> group.second.firstOrNull()?.let { startQueue(group.second, it) } }, { tab = "Albums" }, ink, panel, muted)
                         "Search" -> SearchPage(tracks, query, { query = it }, ::play, currentTrack, ink, panel, muted)
                         "Fetch" -> FetchPage(ink, panel, muted)
@@ -931,6 +932,7 @@ private fun BottomNav(selected: String, ink: Color, muted: Color, onSelect: (Str
         Triple("Listen", Icons.Rounded.Home, "Listen"),
         Triple("Library", Icons.Rounded.LibraryMusic, "Library"),
         Triple("Albums", Icons.Rounded.Album, "Albums"),
+        Triple("Folders", Icons.Rounded.Folder, "Folders"),
         Triple("Fetch", Icons.Rounded.DownloadForOffline, "Fetch"),
         Triple("Playlists", Icons.Rounded.QueueMusic, "Playlists"),
         Triple("You", Icons.Rounded.Person, "Statistics")
