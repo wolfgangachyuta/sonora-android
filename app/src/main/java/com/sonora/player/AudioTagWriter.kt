@@ -6,7 +6,6 @@ import android.provider.OpenableColumns
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 import java.io.File
-import java.io.FileOutputStream
 import java.util.Locale
 
 /**
