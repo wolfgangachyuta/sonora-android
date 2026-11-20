@@ -11,9 +11,9 @@ object MobiParser {
         require(count > 1 && 78 + count * 8 <= bytes.size) { "Invalid Palm database record directory." }
         val offsets = (0 until count).map { i -> u32(bytes, 78 + i * 8) }
         val records = offsets.mapIndexed { i, start ->
-            val end = if (i + 1 < offsets.size) offsets[i + 1] else bytes.size
-            require(start in 0 until end && end <= bytes.size) { "Invalid MOBI record offset." }
-            bytes.copyOfRange(start, end)
+            val end = if (i + 1 < offsets.size) offsets[i + 1] else bytes.size.toLong()
+            require(start >= 0L && start < end && end <= bytes.size.toLong()) { "Invalid MOBI record offset." }
+            bytes.copyOfRange(start.toInt(), end.toInt())
         }
         val header = records.first()
         val compression = u16(header, 0)
@@ -29,7 +29,7 @@ object MobiParser {
             val decoded = if (compression == 1) record else palmDoc(record)
             output.write(decoded)
         }
-        val raw = output.toByteArray().let { if (textLength in 1..it.size.toLong()) it.copyOf(textLength.toInt()) else it }
+        val raw = output.toByteArray().let { if (textLength in 1L..it.size.toLong()) it.copyOf(textLength.toInt()) else it }
         return raw.toString(charset)
     }
 
