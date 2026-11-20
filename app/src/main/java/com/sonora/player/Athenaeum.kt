@@ -630,6 +630,9 @@ private fun BookEditDialog(book: AthenaeumBook, shelves: List<AthenaeumShelf>, o
     var coverUri by remember(book.id) { mutableStateOf(book.coverUri) }
     var rating by remember(book.id) { mutableStateOf(book.rating.toString()) }
     var confirmDelete by remember(book.id) { mutableStateOf(false) }
+    var lookupLoading by remember { mutableStateOf(false) }
+    var lookupMessage by remember { mutableStateOf("") }
+    val lookupScope = rememberCoroutineScope()
     val context = LocalContext.current
     val coverPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -644,7 +647,32 @@ private fun BookEditDialog(book: AthenaeumBook, shelves: List<AthenaeumShelf>, o
             Column(Modifier.heightIn(max = 520.dp).verticalScroll(androidx.compose.foundation.rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 @Composable fun field(label: String, value: String, update: (String) -> Unit) { OutlinedTextField(value, update, Modifier.fillMaxWidth(), label = { Text(label) }, singleLine = label != "Description" && label != "Personal notes") }
                 field("Title", title, { title = it }); field("Author", author, { author = it }); field("Publisher", publisher, { publisher = it })
-                field("Publication year", year, { year = it }); field("ISBN", isbn, { isbn = it }); field("Genre", genre, { genre = it })
+                field("Publication year", year, { year = it })
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(isbn, { isbn = it }, Modifier.weight(1f), label = { Text("ISBN") }, singleLine = true)
+                    Spacer(Modifier.width(6.dp))
+                    OutlinedButton(enabled = !lookupLoading && isbn.isNotBlank(), onClick = {
+                        lookupScope.launch {
+                            lookupLoading = true
+                            lookupMessage = "Looking up ISBN…"
+                            val result = withContext(Dispatchers.IO) { runCatching { BookMetadataLookup.lookup(isbn) }.getOrNull() }
+                            if (result == null) lookupMessage = "No matching record found."
+                            else {
+                                if (title.isBlank() || title == book.title) title = result.title.ifBlank { title }
+                                if (author.isBlank() || author == book.author) author = result.authors.ifBlank { author }
+                                if (publisher.isBlank() || publisher == book.publisher) publisher = result.publisher.ifBlank { publisher }
+                                if (year.isBlank() || year == book.publicationYear) year = result.publishedDate.take(4).ifBlank { year }
+                                if (description.isBlank() || description == book.description) description = result.description.ifBlank { description }
+                                if (genre.isBlank() || genre == book.genre) genre = result.categories.ifBlank { genre }
+                                if (language.isBlank() || language == book.language) language = result.language.ifBlank { language }
+                                lookupMessage = "Metadata found. Review the fields before saving."
+                            }
+                            lookupLoading = false
+                        }
+                    }) { Text(if (lookupLoading) "…" else "LOOK UP", fontSize = 9.sp) }
+                }
+                if (lookupMessage.isNotBlank()) Text(lookupMessage, color = Color(0xFF56745D), fontSize = 10.sp)
+                field("Genre", genre, { genre = it })
                 field("Language", language, { language = it }); field("Description", description, { description = it }); field("Personal notes", notes, { notes = it })
                 field("Personal rating (0–5)", rating, { rating = it })
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
