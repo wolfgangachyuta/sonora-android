@@ -403,7 +403,7 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
         }
     }
     fun persistPlaylists() {
-        persistPlaylists()
+        PlaylistStore(context).save(playlists)
         libraryScope.launch {
             sonoraDao.clearPlaylists()
             sonoraDao.savePlaylists(playlists.map { SonoraPlaylist(it.id, it.name) })
