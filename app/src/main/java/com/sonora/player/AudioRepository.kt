@@ -17,7 +17,8 @@ data class AudioTrack(
     val composer: String = "",
     val year: Int = 0,
     val trackNumber: Int = 0,
-    val discNumber: Int = 0
+    val discNumber: Int = 0,
+    val folderPath: String = ""
 )
 
 class AudioRepository(private val context: Context) {
@@ -32,7 +33,8 @@ class AudioRepository(private val context: Context) {
             MediaStore.Audio.Media.ALBUM_ID,
             MediaStore.Audio.Media.COMPOSER,
             MediaStore.Audio.Media.YEAR,
-            MediaStore.Audio.Media.TRACK
+            MediaStore.Audio.Media.TRACK,
+            MediaStore.Audio.Media.DATA
         ).apply {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 add(MediaStore.Audio.Media.ALBUM_ARTIST)
@@ -55,6 +57,7 @@ class AudioRepository(private val context: Context) {
             val yearCol = cursor.getColumnIndex(MediaStore.Audio.Media.YEAR)
             val trackCol = cursor.getColumnIndex(MediaStore.Audio.Media.TRACK)
             val discCol = cursor.getColumnIndex("disc_number")
+            val pathCol = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idCol)
@@ -70,7 +73,8 @@ class AudioRepository(private val context: Context) {
                     composer = if (composerCol >= 0) cursor.getString(composerCol).orEmpty() else "",
                     year = if (yearCol >= 0) cursor.getInt(yearCol) else 0,
                     trackNumber = if (trackCol >= 0) cursor.getInt(trackCol) else 0,
-                    discNumber = if (discCol >= 0) cursor.getInt(discCol) else 0
+                    discNumber = if (discCol >= 0) cursor.getInt(discCol) else 0,
+                    folderPath = if (pathCol >= 0) cursor.getString(pathCol)?.substringBeforeLast('/') ?: "" else ""
                 )
             }
         }
