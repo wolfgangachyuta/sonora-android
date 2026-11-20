@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaController
@@ -344,7 +345,7 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
             if (savedQueue.isNotEmpty()) {
                 val startIndex = (snapshot?.currentIndex ?: preferences.getInt("queue_index", 0)).coerceIn(0, savedQueue.lastIndex)
                 val position = snapshot?.positionMs ?: 0L
-                player.setMediaItems(savedQueue.map { MediaItem.Builder().setUri(it.uri).setMediaId(it.id.toString()).build() }, startIndex, position)
+                player.setMediaItems(savedQueue.map { MediaItem.Builder().setUri(it.uri).setMediaId(it.id.toString()).setMediaMetadata(MediaMetadata.Builder().setTitle(it.title).setArtist(it.artist).setAlbumTitle(it.album).setArtworkUri(Uri.parse("content://media/external/audio/albumart/${it.albumId}")).build()).build() }, startIndex, position)
                 player.prepare()
                 currentTrack = savedQueue[startIndex]
             }
