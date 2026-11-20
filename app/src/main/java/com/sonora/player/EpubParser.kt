@@ -108,8 +108,9 @@ object EpubParser {
         return EpubDocument(title, author, chapters, files[coverPath], publisher, language, description, publicationDate.take(4), isbn, subject)
     }
 
-    private fun parser(bytes: ByteArray): XmlPullParser = XmlPullParserFactory.newInstance().newPullParser().apply {
-        setInput(ByteArrayInputStream(bytes), "UTF-8")
+    private fun parser(bytes: ByteArray): XmlPullParser {
+        val factory = XmlPullParserFactory.newInstance().apply { isNamespaceAware = true }
+        return factory.newPullParser().apply { setInput(ByteArrayInputStream(bytes), "UTF-8") }
     }
 
     private fun parseEpub3Nav(bytes: ByteArray?, base: String): Map<String, String> {
