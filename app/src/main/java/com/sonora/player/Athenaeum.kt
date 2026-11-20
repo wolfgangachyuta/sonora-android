@@ -895,8 +895,12 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                 }
             }) { Icon(Icons.Rounded.BookmarkAdd, "Save bookmark", tint = readerForeground) }
             IconButton(onClick = {
-                val spoken = if (ext == "pdf") ocrText else content.replace(Regex("<[^>]+>"), " ").replace(Regex("\\s+"), " ")
-                if (spoken.isNotBlank()) textToSpeech.speak(spoken, TextToSpeech.QUEUE_FLUSH, null, "athenaeum-reader")
+                if (textToSpeech.isSpeaking) textToSpeech.stop() else {
+                    val spoken = if (ext == "pdf") ocrText else content.replace(Regex("<[^>]+>"), " ").replace(Regex("\\s+"), " ")
+                    if (spoken.isNotBlank()) spoken.chunked(3_500).forEachIndexed { index, part ->
+                        textToSpeech.speak(part, if (index == 0) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD, null, "athenaeum-reader-$index")
+                    }
+                }
             }, enabled = ttsReady) { Icon(Icons.Rounded.VolumeUp, "Read this book aloud", tint = readerForeground) }
             IconButton(onClick = { textSize = (textSize + 1f).coerceAtMost(30f) }) { Icon(Icons.Rounded.TextIncrease, "Increase text size", tint = readerForeground) }
         }
