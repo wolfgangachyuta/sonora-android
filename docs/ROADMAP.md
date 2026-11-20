@@ -60,7 +60,8 @@ The repository currently ships one Android package containing two connected expe
 - [ ] Full EPUB resource/DRM compatibility and a production-grade Readium-based rendering engine.
 - [x] Capture selected WebView passages and re-render saved highlights in EPUB/HTML reader content.
 - [ ] Annotation colour choices, PDF-page highlight overlays and exportable highlight collections.
-- [ ] Dictionary lookup, robust pagination and typography controls across every format.
+- [x] On-demand online dictionary lookup for a selected single word.
+- [ ] Offline dictionary packs, robust pagination and typography controls across every format.
 - [ ] Accessibility audit and screen-reader/large-font verification.
 
 ### Archive, portability and future services
