@@ -6,7 +6,18 @@ import java.io.ByteArrayInputStream
 import java.util.zip.ZipInputStream
 
 data class EpubChapter(val href: String, val title: String, val html: String)
-data class EpubDocument(val title: String, val author: String, val chapters: List<EpubChapter>, val coverImage: ByteArray? = null)
+data class EpubDocument(
+    val title: String,
+    val author: String,
+    val chapters: List<EpubChapter>,
+    val coverImage: ByteArray? = null,
+    val publisher: String = "",
+    val language: String = "",
+    val description: String = "",
+    val publicationYear: String = "",
+    val isbn: String = "",
+    val subject: String = ""
+)
 
 /** EPUB 2/3 container, OPF manifest/spine and NCX/EPUB3 navigation reader. */
 object EpubParser {
@@ -41,12 +52,24 @@ object EpubParser {
         var coverHref = ""
         var title = ""
         var author = ""
+        var publisher = ""
+        var language = ""
+        var description = ""
+        var publicationDate = ""
+        var identifier = ""
+        var subject = ""
         val p = parser(opf)
         while (p.eventType != XmlPullParser.END_DOCUMENT) {
             if (p.eventType == XmlPullParser.START_TAG) {
                 when (p.name) {
                     "title" -> if (title.isBlank()) title = p.nextText().trim()
                     "creator" -> if (author.isBlank()) author = p.nextText().trim()
+                    "publisher" -> if (publisher.isBlank()) publisher = p.nextText().trim()
+                    "language" -> if (language.isBlank()) language = p.nextText().trim()
+                    "description" -> if (description.isBlank()) description = p.nextText().trim()
+                    "date" -> if (publicationDate.isBlank()) publicationDate = p.nextText().trim()
+                    "identifier" -> if (identifier.isBlank()) identifier = p.nextText().trim()
+                    "subject" -> if (subject.isBlank()) subject = p.nextText().trim()
                     "meta" -> if (p.getAttributeValue(null, "name") == "cover") coverId = p.getAttributeValue(null, "content").orEmpty()
                     "item" -> {
                         val id = p.getAttributeValue(null, "id").orEmpty()
@@ -80,7 +103,9 @@ object EpubParser {
         }
         require(chapters.isNotEmpty()) { "This EPUB has no readable chapters in its spine" }
         val coverPath = coverHref.ifBlank { manifest[coverId].orEmpty() }
-        return EpubDocument(title, author, chapters, files[coverPath])
+        val isbnCandidate = identifier.filter { it.isDigit() || it == 'X' || it == 'x' }
+        val isbn = if (isbnCandidate.length == 10 || isbnCandidate.length == 13) isbnCandidate else ""
+        return EpubDocument(title, author, chapters, files[coverPath], publisher, language, description, publicationDate.take(4), isbn, subject)
     }
 
     private fun parser(bytes: ByteArray): XmlPullParser = XmlPullParserFactory.newInstance().newPullParser().apply {
