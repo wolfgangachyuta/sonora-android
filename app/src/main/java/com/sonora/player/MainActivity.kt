@@ -138,6 +138,7 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
     var favorites by remember { mutableStateOf(preferences.getStringSet("favorite_ids", emptySet())?.toSet() ?: emptySet()) }
     var recentIds by remember { mutableStateOf(preferences.getString("recent_ids", "").orEmpty().split(",").filter { it.isNotBlank() }) }
     var playCounts by remember { mutableStateOf(preferences.getString("play_counts", "").orEmpty().split(",").filter { it.contains(":") }.associate { it.substringBefore(":") to (it.substringAfter(":").toIntOrNull() ?: 0) }) }
+    var playEvents by remember { mutableStateOf(emptyList<SonoraPlayEvent>()) }
     var shuffle by remember { mutableStateOf(false) }
     var repeatMode by remember { mutableStateOf(Player.REPEAT_MODE_OFF) }
     var playbackSpeed by remember { mutableFloatStateOf(preferences.getFloat("playback_speed", 1f).coerceIn(0.5f, 2f)) }
@@ -158,6 +159,7 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
             preferences.edit().putBoolean("room_migration_v1", true).apply()
         }
         favorites = sonoraDao.favoriteIds().toSet()
+        playEvents = sonoraDao.recentHistory()
         val savedPlaylists = sonoraDao.playlists()
         if (savedPlaylists.isNotEmpty()) {
             playlists = savedPlaylists.map { item -> LocalPlaylist(item.id, item.name, sonoraDao.playlistTrackIds(item.id)) }
@@ -293,7 +295,10 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
                     preferences.edit().putString("recent_ids", recentIds.joinToString(",")).apply()
                     playCounts = playCounts.toMutableMap().apply { put(t.id.toString(), (get(t.id.toString()) ?: 0) + 1) }
                     preferences.edit().putString("play_counts", playCounts.entries.joinToString(",") { "${it.key}:${it.value}" }).putInt("queue_index", player.currentMediaItemIndex).apply()
-                    libraryScope.launch { sonoraDao.recordPlay(SonoraPlayEvent(trackId = t.id.toString())) }
+                    libraryScope.launch {
+                        sonoraDao.recordPlay(SonoraPlayEvent(trackId = t.id.toString()))
+                        playEvents = sonoraDao.recentHistory()
+                    }
                 }
             }
         }
@@ -447,7 +452,7 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
                         "Search" -> SearchPage(tracks, query, { query = it }, ::play, currentTrack, ink, panel, muted)
                         "Fetch" -> FetchPage(ink, panel, muted)
                         "Favourites" -> TrackCollectionPage("Favourites", tracks.filter { it.id.toString() in favorites }, ::play, currentTrack, favorites, ::toggleFavorite, ink, panel, muted)
-                        "Statistics" -> StatsPage(tracks, playCounts, recentIds, ink, panel, muted)
+                        "Statistics" -> StatsPage(tracks, playCounts, recentIds, playEvents, ink, panel, muted)
                         "Playlists" -> PlaylistsPage(playlists, tracks, ink, panel, muted, { name ->
                             val clean = name.trim()
                             if (clean.isNotEmpty() && playlists.none { it.name.equals(clean, true) }) {
@@ -802,14 +807,25 @@ private fun PlaylistsPage(
 }
 
 @Composable
-private fun StatsPage(tracks: List<AudioTrack>, counts: Map<String, Int>, recentIds: List<String>, ink: Color, panel: Color, muted: Color) {
+private fun StatsPage(tracks: List<AudioTrack>, counts: Map<String, Int>, recentIds: List<String>, events: List<SonoraPlayEvent>, ink: Color, panel: Color, muted: Color) {
     val totalPlays = counts.values.sum()
+    val now = System.currentTimeMillis()
+    val monthStart = java.util.Calendar.getInstance().apply {
+        set(java.util.Calendar.DAY_OF_MONTH, 1)
+        set(java.util.Calendar.HOUR_OF_DAY, 0)
+        set(java.util.Calendar.MINUTE, 0)
+        set(java.util.Calendar.SECOND, 0)
+        set(java.util.Calendar.MILLISECOND, 0)
+    }.timeInMillis
+    val thisMonth = events.count { it.playedAt >= monthStart }
+    val last30Days = events.count { it.playedAt >= now - 30L * 24 * 60 * 60 * 1000 }
     val mostPlayed = tracks.sortedByDescending { counts[it.id.toString()] ?: 0 }.take(5).filter { (counts[it.id.toString()] ?: 0) > 0 }
     val topArtists = tracks.groupBy { it.artist }.map { it.key to it.value.sumOf { t -> counts[t.id.toString()] ?: 0 } }.sortedByDescending { it.second }.take(5)
     val recent = recentIds.mapNotNull { id -> tracks.firstOrNull { it.id.toString() == id } }.distinctBy { it.id }.take(6)
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item { PageHeader("Listening statistics", "${totalPlays} plays across ${tracks.size} tracks", ink, muted) }
         item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { DashboardTile("TRACKS", tracks.size.toString(), Modifier.weight(1f), ink, panel, muted); DashboardTile("PLAY COUNTS", totalPlays.toString(), Modifier.weight(1f), ink, panel, muted); DashboardTile("ARTISTS", tracks.map { it.artist }.distinct().size.toString(), Modifier.weight(1f), ink, panel, muted) } }
+        item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { DashboardTile("THIS MONTH", thisMonth.toString(), Modifier.weight(1f), ink, panel, muted); DashboardTile("LAST 30 DAYS", last30Days.toString(), Modifier.weight(1f), ink, panel, muted) } }
         item { Text("IN HEAVY ROTATION", fontSize = 9.sp, color = muted, letterSpacing = 1.5.sp) }
         if (mostPlayed.isEmpty()) item { Text("Play some music. Your favourites in rotation will appear here.", color = muted, fontSize = 12.sp) }
         items(mostPlayed, key = { it.id }) { TrackRow(it, false, {}, ink, muted, counts[it.id.toString()] ?: 0) }
