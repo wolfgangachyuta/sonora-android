@@ -38,6 +38,16 @@
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/athenaeum_random_widget" />
         </receiver>
         <activity
+            android:name=".AthenaeumLauncherActivity"
+            android:exported="true"
+            android:label="Athenaeum"
+            android:theme="@android:style/Theme.Material.Light.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
