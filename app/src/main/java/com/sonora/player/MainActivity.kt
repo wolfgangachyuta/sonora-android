@@ -456,6 +456,7 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
         if (items.isEmpty()) {
             player.clearMediaItems()
             preferences.edit().remove("queue_ids").remove("queue_index").apply()
+            libraryScope.launch { sonoraDao.clearQueue() }
             currentTrack = null
         } else {
             val selectedIndex = items.indexOfFirst { it.mediaId == selectedId }.let { if (it >= 0) it else index.coerceAtMost(items.lastIndex) }
