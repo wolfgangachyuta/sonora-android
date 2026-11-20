@@ -444,22 +444,22 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
                             val clean = name.trim()
                             if (clean.isNotEmpty() && playlists.none { it.name.equals(clean, true) }) {
                                 playlists = playlists + LocalPlaylist(java.util.UUID.randomUUID().toString(), clean, emptyList())
-                                PlaylistStore(context).save(playlists)
+                                persistPlaylists()
                             }
                         }, { playlistId ->
                             playlists = playlists.filterNot { it.id == playlistId }
-                            PlaylistStore(context).save(playlists)
+                            persistPlaylists()
                         }, { playlistId, trackIds ->
                             playlists = playlists.map { p -> if (p.id == playlistId) p.copy(trackIds = (p.trackIds + trackIds).distinct()) else p }
-                            PlaylistStore(context).save(playlists)
+                            persistPlaylists()
                         }, { playlistId, trackId ->
                             playlists = playlists.map { p -> if (p.id == playlistId) p.copy(trackIds = p.trackIds.filterNot { it == trackId }) else p }
-                            PlaylistStore(context).save(playlists)
+                            persistPlaylists()
                         }, { playlistId, newName ->
                             val clean = newName.trim()
                             if (clean.isNotEmpty() && playlists.none { it.id != playlistId && it.name.equals(clean, true) }) {
                                 playlists = playlists.map { p -> if (p.id == playlistId) p.copy(name = clean) else p }
-                                PlaylistStore(context).save(playlists)
+                                persistPlaylists()
                             }
                         }, { playlist ->
                             val songs = playlist.trackIds.mapNotNull { id -> tracks.firstOrNull { it.id.toString() == id } }
