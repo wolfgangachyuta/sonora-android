@@ -788,7 +788,7 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
     DisposableEffect(book.id) {
         onDispose {
             val elapsed = ((System.currentTimeMillis() - sessionStartedAt) / 60_000L).toInt().coerceAtLeast(1)
-            scope.launch { dao.addReadingSession(AthenaeumReadingSession(bookId = book.id, startedAt = sessionStartedAt, durationMinutes = elapsed, pagesRead = if (ext == "pdf") (page + 1).coerceAtLeast(0) else 0)) }
+            scope.launch { dao.addReadingSession(AthenaeumReadingSession(bookId = book.id, startedAt = sessionStartedAt, durationMinutes = elapsed, pagesRead = if (ext == "pdf") (page + 1).coerceAtLeast(0) else if (ext == "epub") (epubChapterIndex + 1).coerceAtLeast(0) else 0)) }
         }
     }
 
@@ -1035,7 +1035,7 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
             },
             confirmButton = { TextButton(onClick = {
                 if (annotationQuote.isNotBlank()) scope.launch {
-                    dao.addAnnotation(AthenaeumAnnotation(bookId = book.id, location = if (ext == "pdf") page else if (ext == "txt") textScroll.value else readerWebView?.scrollY ?: 0, quote = annotationQuote.trim(), note = annotationNote.trim()))
+                    dao.addAnnotation(AthenaeumAnnotation(bookId = book.id, location = if (ext == "pdf") page else if (ext == "txt") textScroll.value else if (ext == "epub") epubChapterIndex else readerWebView?.scrollY ?: 0, quote = annotationQuote.trim(), note = annotationNote.trim()))
                 }
                 showAnnotationEditor = false
             }) { Text("SAVE") } },
