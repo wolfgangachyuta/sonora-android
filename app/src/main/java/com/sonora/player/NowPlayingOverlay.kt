@@ -166,7 +166,6 @@ fun NowPlayingOverlay(
                 Spacer(Modifier.height(24.dp))
             }
         }
-    }
     if (showSpeedDialog.value) {
         AlertDialog(
             onDismissRequest = { showSpeedDialog.value = false },
