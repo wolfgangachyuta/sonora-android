@@ -29,7 +29,7 @@ fun NowPlayingOverlay(
     ink: Color, paper: Color, panel: Color, muted: Color, dark: Boolean,
     onToggle: () -> Unit, onPrevious: () -> Unit, onNext: () -> Unit, onSeek: (Long) -> Unit,
     onClose: () -> Unit, shuffle: Boolean, onShuffle: (Boolean) -> Unit, repeat: Int, onRepeat: (Int) -> Unit,
-    favorite: Boolean, onFavorite: () -> Unit, onLyrics: () -> Unit,
+    favorite: Boolean, onFavorite: () -> Unit, onLyrics: () -> Unit, onQueue: () -> Unit,
     onMetadata: () -> Unit, onEqualizer: () -> Unit,
     sleepMinutes: Int?, onSleepTimer: (Int?) -> Unit,
     playbackSpeed: Float, onPlaybackSpeed: (Float) -> Unit
@@ -122,7 +122,7 @@ fun NowPlayingOverlay(
                 }
 
                 Spacer(Modifier.height(22.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilledTonalButton(
                         onClick = onLyrics, modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(18.dp),
@@ -131,6 +131,15 @@ fun NowPlayingOverlay(
                         Icon(Icons.Rounded.MusicNote, null, modifier = Modifier.size(17.dp))
                         Spacer(Modifier.width(7.dp))
                         Text("Lyrics")
+                    }
+                    FilledTonalButton(
+                        onClick = onQueue, modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(containerColor = panel, contentColor = foreground)
+                    ) {
+                        Icon(Icons.Rounded.QueueMusic, null, modifier = Modifier.size(17.dp))
+                        Spacer(Modifier.width(5.dp))
+                        Text("Queue")
                     }
                     FilledTonalButton(
                         onClick = onEqualizer, modifier = Modifier.weight(1f),
