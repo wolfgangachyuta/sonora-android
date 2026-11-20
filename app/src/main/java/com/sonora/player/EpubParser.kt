@@ -72,7 +72,7 @@ object EpubParser {
             val type = media[id].orEmpty()
             if (type.isNotBlank() && !type.contains("html") && !type.contains("xhtml")) return@mapNotNull null
             val raw = files[href]?.toString(Charsets.UTF_8) ?: return@mapNotNull null
-            EpubChapter(href, navTitles[href] ?: href.substringAfterLast('/').substringBeforeLast('.'), style(raw))
+            EpubChapter(href, navTitles[href] ?: href.substringAfterLast('/').substringBeforeLast('.'), style(raw, href, files))
         }
         require(chapters.isNotEmpty()) { "This EPUB has no readable chapters in its spine" }
         return EpubDocument(title, author, chapters)
@@ -137,9 +137,47 @@ object EpubParser {
         return clean.joinToString("/")
     }
 
-    private fun style(html: String): String {
-        val css = "<meta name='viewport' content='width=device-width, initial-scale=1'><style>body{font-family:serif;font-size:1.08em;line-height:1.75;padding:1.2em;color:#252722;background:#f7f6f1;max-width:48em;margin:auto}img{max-width:100%;height:auto}a{color:#56745d}p{margin:0 0 1em}h1,h2,h3{line-height:1.3}</style>"
-        return if (html.contains("<head", true)) html.replaceFirst(Regex("(?i)<head[^>]*>"), "$0$css")
-        else "<html><head>$css</head><body>$html</body></html>"
+    private fun style(html: String, chapterHref: String, files: Map<String, ByteArray>): String {
+        val chapterDir = chapterHref.substringBeforeLast('/', "")
+        var output = html
+        val linkPattern = Regex("""(?is)<link\\b[^>]*href=['"]([^'"]+)['"][^>]*>""")
+        output = linkPattern.replace(output) { match ->
+            val href = match.groupValues[1].substringBefore('#')
+            val cssBytes = files[resolve(chapterDir, href)]
+            if (cssBytes == null) "" else {
+                val cssPath = resolve(chapterDir, href)
+                val cssBase = cssPath.substringBeforeLast('/', "")
+                val cssText = cssBytes.toString(Charsets.UTF_8)
+                val inlineCss = Regex("""url\\((['"]?)([^)'"]+)\\1\\)""").replace(cssText) { resource ->
+                    val target = resource.groupValues[2]
+                    if (target.startsWith("data:") || target.startsWith("http")) resource.value
+                    else {
+                        val imagePath = resolve(cssBase, target.substringBefore('#'))
+                        val image = files[imagePath]
+                        if (image == null) "url()" else {
+                            val mime = when (imagePath.substringAfterLast('.', "").lowercase()) { "png" -> "image/png"; "gif" -> "image/gif"; "webp" -> "image/webp"; else -> "image/jpeg" }
+                            "url(data:$mime;base64,${java.util.Base64.getEncoder().encodeToString(image)})"
+                        }
+                    }
+                }
+                "<style>$inlineCss</style>"
+            }
+        }
+        val imagePattern = Regex("""(?i)(src)\\s*=\\s*(['"])([^'"]+)\\2""")
+        output = imagePattern.replace(output) { match ->
+            val target = match.groupValues[3]
+            if (target.startsWith("data:") || target.startsWith("http") || target.startsWith("content:")) match.value
+            else {
+                val imagePath = resolve(chapterDir, target.substringBefore('#'))
+                val image = files[imagePath]
+                if (image == null) match.value else {
+                    val mime = when (imagePath.substringAfterLast('.', "").lowercase()) { "png" -> "image/png"; "gif" -> "image/gif"; "webp" -> "image/webp"; else -> "image/jpeg" }
+                    "src=${match.groupValues[2]}data:$mime;base64,${java.util.Base64.getEncoder().encodeToString(image)}${match.groupValues[2]}"
+                }
+            }
+        }
+        val css = "<meta name='viewport' content='width=device-width, initial-scale=1'><style>body{font-family:serif;font-size:1.08em;line-height:1.75;padding:1.2em;color:#252722;background:#f7f6f1;max-width:48em;margin:auto;overflow-wrap:break-word}img{max-width:100%;height:auto}a{color:#56745d}p{margin:0 0 1em}h1,h2,h3{line-height:1.3}</style>"
+        return if (output.contains("<head", true)) output.replaceFirst(Regex("(?i)<head[^>]*>"), "$0$css")
+        else "<html><head>$css</head><body>$output</body></html>"
     }
 }
