@@ -527,10 +527,8 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
             }, modifier = Modifier.weight(1f).fillMaxWidth())
             Text("EPUB / HTML reader · adjustable theme and library position", color = if (dark) AthenaParchment else AthenaWalnut, fontSize = 10.sp, modifier = Modifier.padding(12.dp))
         } else {
-            androidx.compose.foundation.rememberScrollState()
-            androidx.compose.foundation.verticalScroll(androidx.compose.foundation.rememberScrollState())
             Text(content, color = if (dark) AthenaParchment else AthenaCharcoal, fontSize = textSize.sp, lineHeight = (textSize * 1.55f).sp,
-                modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 24.dp, vertical = 22.dp))
+                modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(textScroll).padding(horizontal = 24.dp, vertical = 22.dp))
             Row(Modifier.fillMaxWidth().background(AthenaWalnut).padding(10.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                 TextButton(onClick = { textSize = (textSize - 1f).coerceAtLeast(12f) }) { Text("A−", color = AthenaGold) }
                 TextButton(onClick = { textSize = (textSize + 1f).coerceAtMost(30f) }) { Text("A+", color = AthenaGold) }
