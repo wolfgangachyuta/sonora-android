@@ -89,6 +89,9 @@ class MainActivity : ComponentActivity() {
 private fun SonoraApp(startInAthenaeum: Boolean = false) {
     val context = LocalContext.current
     val preferences = remember { context.getSharedPreferences("sonora_library", Context.MODE_PRIVATE) }
+    val sonoraDao = remember { SonoraDatabase.get(context).dao() }
+    val libraryScope = rememberCoroutineScope()
+    var roomReady by remember { mutableStateOf(false) }
     var darkMode by remember { mutableStateOf(preferences.getBoolean("dark_mode", false)) }
     val ink = if (darkMode) Cream else Night
     val paper = if (darkMode) Night else Cream
@@ -142,6 +145,29 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
     var queueRestored by remember { mutableStateOf(false) }
     var lyricLines by remember { mutableStateOf(emptyList<LyricLine>()) }
     val fetchStatus by SonoraFetch.status.collectAsState()
+
+    LaunchedEffect(Unit) {
+        if (!preferences.getBoolean("room_migration_v1", false)) {
+            sonoraDao.saveFavorites(favorites.map { SonoraFavorite(it) })
+            playlists.forEach { playlist ->
+                sonoraDao.savePlaylist(SonoraPlaylist(playlist.id, playlist.name))
+                sonoraDao.savePlaylistTracks(playlist.trackIds.mapIndexed { index, id -> SonoraPlaylistTrack(playlist.id, id, index) })
+            }
+            recentIds.forEachIndexed { index, id -> sonoraDao.recordPlay(SonoraPlayEvent(trackId = id, playedAt = System.currentTimeMillis() - index)) }
+            preferences.edit().putBoolean("room_migration_v1", true).apply()
+        }
+        favorites = sonoraDao.favoriteIds().toSet()
+        val savedPlaylists = sonoraDao.playlists()
+        if (savedPlaylists.isNotEmpty()) {
+            playlists = savedPlaylists.map { item -> LocalPlaylist(item.id, item.name, sonoraDao.playlistTrackIds(item.id)) }
+        }
+        sonoraDao.queueSnapshot()?.let { snapshot ->
+            if (preferences.getString("queue_ids", "").isNullOrBlank()) {
+                preferences.edit().putString("queue_ids", snapshot.trackIds).putInt("queue_index", snapshot.currentIndex).apply()
+            }
+        }
+        roomReady = true
+    }
 
     var editingTrack by remember { mutableStateOf<AudioTrack?>(null) }
     var pendingTagTrack by remember { mutableStateOf<AudioTrack?>(null) }
@@ -266,6 +292,7 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
                     preferences.edit().putString("recent_ids", recentIds.joinToString(",")).apply()
                     playCounts = playCounts.toMutableMap().apply { put(t.id.toString(), (get(t.id.toString()) ?: 0) + 1) }
                     preferences.edit().putString("play_counts", playCounts.entries.joinToString(",") { "${it.key}:${it.value}" }).putInt("queue_index", player.currentMediaItemIndex).apply()
+                    libraryScope.launch { sonoraDao.recordPlay(SonoraPlayEvent(trackId = t.id.toString())) }
                 }
             }
         }
@@ -301,13 +328,16 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
         }
     }
 
-    LaunchedEffect(tracks, player) {
-        if (tracks.isNotEmpty() && !queueRestored && player.mediaItemCount == 0) {
-            val savedIds = preferences.getString("queue_ids", "").orEmpty().split(",").filter { it.isNotBlank() }
+    LaunchedEffect(tracks, player, roomReady) {
+        if (roomReady && tracks.isNotEmpty() && !queueRestored && player.mediaItemCount == 0) {
+            val snapshot = sonoraDao.queueSnapshot()
+            val storedIds = preferences.getString("queue_ids", "").orEmpty().ifBlank { snapshot?.trackIds.orEmpty() }
+            val savedIds = storedIds.split(",").filter { it.isNotBlank() }
             val savedQueue = savedIds.mapNotNull { id -> tracks.firstOrNull { it.id.toString() == id } }
             if (savedQueue.isNotEmpty()) {
-                val startIndex = preferences.getInt("queue_index", 0).coerceIn(0, savedQueue.lastIndex)
-                player.setMediaItems(savedQueue.map { MediaItem.Builder().setUri(it.uri).setMediaId(it.id.toString()).build() }, startIndex, 0L)
+                val startIndex = (snapshot?.currentIndex ?: preferences.getInt("queue_index", 0)).coerceIn(0, savedQueue.lastIndex)
+                val position = snapshot?.positionMs ?: 0L
+                player.setMediaItems(savedQueue.map { MediaItem.Builder().setUri(it.uri).setMediaId(it.id.toString()).build() }, startIndex, position)
                 player.prepare()
                 currentTrack = savedQueue[startIndex]
             }
@@ -321,6 +351,7 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
         val startIndex = queue.indexOfFirst { it.id == chosen.id }.coerceAtLeast(0)
         player.setMediaItems(queue.map { MediaItem.Builder().setUri(it.uri).setMediaId(it.id.toString()).build() }, startIndex, 0L)
         preferences.edit().putString("queue_ids", queue.joinToString(",") { it.id.toString() }).putInt("queue_index", startIndex).apply()
+        libraryScope.launch { sonoraDao.saveQueue(SonoraQueueSnapshot(trackIds = queue.joinToString(",") { it.id.toString() }, currentIndex = startIndex, positionMs = 0L)) }
         currentTrack = chosen
         player.repeatMode = repeatMode
         player.shuffleModeEnabled = shuffle
@@ -334,7 +365,10 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
         tracks.firstOrNull { it.id.toString() == id }
     }
     fun saveCurrentQueue(items: List<MediaItem>, selectedId: String?) {
-        preferences.edit().putString("queue_ids", items.joinToString(",") { it.mediaId }).putInt("queue_index", items.indexOfFirst { it.mediaId == selectedId }.coerceAtLeast(0)).apply()
+        val index = items.indexOfFirst { it.mediaId == selectedId }.coerceAtLeast(0)
+        val position = player.currentPosition.coerceAtLeast(0L)
+        preferences.edit().putString("queue_ids", items.joinToString(",") { it.mediaId }).putInt("queue_index", index).apply()
+        libraryScope.launch { sonoraDao.saveQueue(SonoraQueueSnapshot(trackIds = items.joinToString(",") { it.mediaId }, currentIndex = index, positionMs = position)) }
     }
     fun moveQueueItem(from: Int, to: Int) {
         val items = (0 until player.mediaItemCount).map { player.getMediaItemAt(it) }.toMutableList()
@@ -368,9 +402,23 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
             saveCurrentQueue(items, player.currentMediaItem?.mediaId ?: items[selectedIndex].mediaId)
         }
     }
+    fun persistPlaylists() {
+        persistPlaylists()
+        libraryScope.launch {
+            sonoraDao.clearPlaylists()
+            sonoraDao.savePlaylists(playlists.map { SonoraPlaylist(it.id, it.name) })
+            playlists.forEach { playlist ->
+                sonoraDao.savePlaylistTracks(playlist.trackIds.mapIndexed { index, id -> SonoraPlaylistTrack(playlist.id, id, index) })
+            }
+        }
+    }
     fun toggleFavorite(track: AudioTrack) {
         favorites = if (track.id.toString() in favorites) favorites - track.id.toString() else favorites + track.id.toString()
         preferences.edit().putStringSet("favorite_ids", favorites).apply()
+        libraryScope.launch {
+            if (track.id.toString() in favorites) sonoraDao.saveFavorite(SonoraFavorite(track.id.toString()))
+            else sonoraDao.removeFavorite(track.id.toString())
+        }
     }
     fun requestScan() { if (hasPermission) loading = true else permissionLauncher.launch(audioPermission()) }
     LaunchedEffect(fetchStatus.savedPath) {
