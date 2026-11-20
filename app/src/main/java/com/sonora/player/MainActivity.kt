@@ -94,6 +94,7 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
     val libraryScope = rememberCoroutineScope()
     var roomReady by remember { mutableStateOf(false) }
     var darkMode by remember { mutableStateOf(preferences.getBoolean("dark_mode", false)) }
+    var accentChoice by remember { mutableStateOf(preferences.getString("accent_mode", "artwork") ?: "artwork") }
     val ink = if (darkMode) Cream else Night
     val paper = if (darkMode) Night else Cream
     val panel = if (darkMode) PanelDark else PanelLight
@@ -129,9 +130,14 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
     var tracks by remember { mutableStateOf(emptyList<AudioTrack>()) }
     var currentTrack by remember { mutableStateOf<AudioTrack?>(null) }
 
-    LaunchedEffect(currentTrack?.albumId) {
+    LaunchedEffect(currentTrack?.albumId, accentChoice) {
         val albumId = currentTrack?.albumId
-        AccentDeep = if (albumId == null) Accent else withContext(Dispatchers.IO) {
+        AccentDeep = when (accentChoice) {
+            "terracotta" -> Color(0xFFC96F52)
+            "forest" -> Color(0xFF5F8268)
+            "ocean" -> Color(0xFF4D7895)
+            "plum" -> Color(0xFF8A668D)
+            else -> if (albumId == null) Accent else withContext(Dispatchers.IO) {
             runCatching {
                 val uri = Uri.parse("content://media/external/audio/albumart/$albumId")
                 context.contentResolver.openInputStream(uri)?.use { stream ->
@@ -535,7 +541,7 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
                         "Lyrics" -> LyricsPage(lyricLines, positionMs, ink, panel, muted, { lyricLauncher.launch(arrayOf("text/*", "application/octet-stream")) }, { tab = "Now Playing" })
                         "Queue" -> QueuePage(queueTracks(), player.currentMediaItemIndex, { index -> player.seekTo(index, 0L); player.play() }, ::moveQueueItem, ::removeQueueItem, ink, panel, muted)
                         "Equalizer" -> EqualizerPage(SonoraPlaybackService.audioSessionId, ink, panel, muted, { tab = "Settings" })
-                        "Settings" -> SettingsPage(darkMode, { darkMode = it; preferences.edit().putBoolean("dark_mode", it).apply() }, shuffle, { shuffle = it; player.shuffleModeEnabled = it }, repeatMode, { repeatMode = it; player.repeatMode = it }, tracks.size, ink, panel, muted, { tab = "Equalizer" })
+                        "Settings" -> SettingsPage(darkMode, { darkMode = it; preferences.edit().putBoolean("dark_mode", it).apply() }, shuffle, { shuffle = it; player.shuffleModeEnabled = it }, repeatMode, { repeatMode = it; player.repeatMode = it }, tracks.size, accentChoice, { choice -> accentChoice = choice; preferences.edit().putString("accent_mode", choice).apply() }, ink, panel, muted, { tab = "Equalizer" })
                         else -> HomePage(tracks, currentTrack, isPlaying, recentIds, ::play, ::requestScan, { tab = "Library" }, ink, panel, muted, darkMode)
                     }
                 }
@@ -1015,10 +1021,19 @@ private fun EqualizerPage(audioSessionId: Int, ink: Color, panel: Color, muted: 
     }
 }
 @Composable
-private fun SettingsPage(dark: Boolean, onDark: (Boolean) -> Unit, shuffle: Boolean, onShuffle: (Boolean) -> Unit, repeat: Int, onRepeat: (Int) -> Unit, trackCount: Int, ink: Color, panel: Color, muted: Color, onEqualizer: () -> Unit) {
+private fun SettingsPage(dark: Boolean, onDark: (Boolean) -> Unit, shuffle: Boolean, onShuffle: (Boolean) -> Unit, repeat: Int, onRepeat: (Int) -> Unit, trackCount: Int, accentChoice: String, onAccentChoice: (String) -> Unit, ink: Color, panel: Color, muted: Color, onEqualizer: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         PageHeader("Settings", "Preferences for listening", ink, muted)
         SettingToggle("Dark appearance", "A softer interface after dark.", dark, onDark, ink, panel, muted)
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(panel).padding(14.dp)) {
+            Text("Accent colour", color = ink, fontWeight = FontWeight.SemiBold)
+            Text("Use the current artwork or choose a fixed colour.", color = muted, fontSize = 10.sp)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("artwork" to "Artwork", "terracotta" to "Terracotta", "forest" to "Forest", "ocean" to "Ocean", "plum" to "Plum").forEach { (key, label) ->
+                    FilterChip(selected = accentChoice == key, onClick = { onAccentChoice(key) }, label = { Text(label, fontSize = 10.sp) })
+                }
+            }
+        }
         SettingToggle("Shuffle", "Randomise the listening order.", shuffle, onShuffle, ink, panel, muted)
         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(panel).padding(15.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) { Text("Repeat", fontWeight = FontWeight.SemiBold, color = ink); Text("Playback repeat mode", fontSize = 10.sp, color = muted) }
