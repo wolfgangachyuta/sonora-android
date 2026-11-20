@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
+import android.content.ComponentName
 import android.content.Intent
 import android.widget.RemoteViews
 import kotlinx.coroutines.CoroutineScope
@@ -66,5 +67,25 @@ class AthenaeumRandomWidgetProvider : AthenaeumBaseWidgetProvider() {
         val book = books.randomOrNull()
         return if (book == null) WidgetCopy("ATHENAEUM · RANDOM PICK", "Your shelves are waiting", "Add a book to begin.")
         else WidgetCopy("ATHENAEUM · RANDOM PICK", book.title, book.author.ifBlank { book.status })
+    }
+}
+
+object AthenaeumWidgetUpdater {
+    fun refresh(context: Context) {
+        val manager = AppWidgetManager.getInstance(context)
+        listOf(
+            AthenaeumContinueWidgetProvider::class.java,
+            AthenaeumOverviewWidgetProvider::class.java,
+            AthenaeumRandomWidgetProvider::class.java
+        ).forEach { provider ->
+            val component = ComponentName(context, provider)
+            val ids = manager.getAppWidgetIds(component)
+            if (ids.isNotEmpty()) {
+                val update = Intent(AppWidgetManager.ACTION_APPWIDGET_UPDATE)
+                    .setComponent(component)
+                    .putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+                context.sendBroadcast(update)
+            }
+        }
     }
 }
