@@ -222,7 +222,7 @@ fun AthenaeumScreen() {
         }
         if (selectedShelf != null) {
             val shelfBooks by dao.booksOnShelf(selectedShelf!!).collectAsState(initial = emptyList())
-            BookCollectionList(shelfBooks, { book -> reading = book }, { book -> draft = book; editing = true }, { book -> scope.launch { dao.setFavorite(book.id, !book.favorite) } }, ink = AthenaIvory, muted = AthenaParchment)
+            BookCollectionList(shelfBooks, { book -> scope.launch { dao.saveBook(book.copy(status = if (book.status == "Finished") "Finished" else "Currently Reading", lastOpenedAt = System.currentTimeMillis())) }; reading = book }, { book -> draft = book; editing = true }, { book -> scope.launch { dao.setFavorite(book.id, !book.favorite) } }, ink = AthenaIvory, muted = AthenaParchment)
         } else if (filteredBooks.isEmpty()) {
             Column(Modifier.fillMaxWidth().weight(1f).padding(28.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(Icons.Rounded.MenuBook, null, tint = AthenaGold, modifier = Modifier.size(54.dp))
