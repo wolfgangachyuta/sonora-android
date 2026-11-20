@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F7F5F0"
+    android:orientation="vertical"
+    android:padding="16dp">
+    <TextView
+        android:id="@+id/widget_label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="ATHENAEUM"
+        android:textColor="#77766F"
+        android:textSize="9sp"
+        android:letterSpacing="0.12"
+        android:textStyle="bold" />
+    <TextView
+        android:id="@+id/widget_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="7dp"
+        android:text="Your library"
+        android:textColor="#20211F"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:maxLines="2"
+        android:ellipsize="end" />
+    <TextView
+        android:id="@+id/widget_subtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="Open Athenaeum"
+        android:textColor="#77766F"
+        android:textSize="11sp"
+        android:maxLines="1"
+        android:ellipsize="end" />
+    <ProgressBar
+        android:id="@+id/widget_progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="4dp"
+        android:layout_marginTop="9dp"
+        android:progressTint="#66816B"
+        android:progressBackgroundTint="#E5E5DE"
+        android:visibility="gone" />
+</LinearLayout>
