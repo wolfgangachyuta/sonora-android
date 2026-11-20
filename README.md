@@ -5,7 +5,7 @@ A local-first Android application with two connected experiences:
 - **SONORA** — a music library and player for audio already available on the device.
 - **Athenaeum** — a personal physical/digital book catalogue, ebook reader and literary archive.
 
-Both experiences currently live in the same Android application/package (com.sonora.player); Athenaeum is opened from SONORA's top bar and from its home-screen widgets.
+SONORA and Athenaeum have separate launcher entries, while sharing the same Android package/APK (com.sonora.player). Athenaeum also opens from SONORA's top bar and its home-screen widgets.
 
 ## SONORA
 
