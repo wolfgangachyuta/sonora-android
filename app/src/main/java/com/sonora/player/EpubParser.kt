@@ -132,7 +132,11 @@ object EpubParser {
         val parts = (if (base.isBlank()) href else "$base/$href").split('/')
         val clean = mutableListOf<String>()
         parts.forEach { part ->
-            when (part) { "", "." -> Unit; ".." -> if (clean.isNotEmpty()) clean.removeAt(clean.lastIndex); else -> clean += part }
+            when (part) {
+                "", "." -> Unit
+                ".." -> { if (clean.isNotEmpty()) clean.removeAt(clean.lastIndex) }
+                else -> clean += part
+            }
         }
         return clean.joinToString("/")
     }
@@ -140,7 +144,7 @@ object EpubParser {
     private fun style(html: String, chapterHref: String, files: Map<String, ByteArray>): String {
         val chapterDir = chapterHref.substringBeforeLast('/', "")
         var output = html
-        val linkPattern = Regex("""(?is)<link\\b[^>]*href=['"]([^'"]+)['"][^>]*>""")
+        val linkPattern = Regex("""(?is)<link\b[^>]*href=['"]([^'"]+)['"][^>]*>""")
         output = linkPattern.replace(output) { match ->
             val href = match.groupValues[1].substringBefore('#')
             val cssBytes = files[resolve(chapterDir, href)]
@@ -148,7 +152,7 @@ object EpubParser {
                 val cssPath = resolve(chapterDir, href)
                 val cssBase = cssPath.substringBeforeLast('/', "")
                 val cssText = cssBytes.toString(Charsets.UTF_8)
-                val inlineCss = Regex("""url\\((['"]?)([^)'"]+)\\1\\)""").replace(cssText) { resource ->
+                val inlineCss = Regex("""url\((['"]?)([^)'"]+)\1\)""").replace(cssText) { resource ->
                     val target = resource.groupValues[2]
                     if (target.startsWith("data:") || target.startsWith("http")) resource.value
                     else {
@@ -163,7 +167,7 @@ object EpubParser {
                 "<style>$inlineCss</style>"
             }
         }
-        val imagePattern = Regex("""(?i)(src)\\s*=\\s*(['"])([^'"]+)\\2""")
+        val imagePattern = Regex("""(?i)(src)\s*=\s*(['"])([^'"]+)\2""")
         output = imagePattern.replace(output) { match ->
             val target = match.groupValues[3]
             if (target.startsWith("data:") || target.startsWith("http") || target.startsWith("content:")) match.value
