@@ -143,7 +143,13 @@ private fun SonoraApp() {
         val values = pendingMetadataValues
         if (result.resultCode == Activity.RESULT_OK && target != null && values != null) {
             runCatching { context.contentResolver.update(target, values, null, null) }
-                .onSuccess { loading = true }
+                .onSuccess {
+                    loading = true
+                    android.widget.Toast.makeText(context, "Track information updated.", android.widget.Toast.LENGTH_SHORT).show()
+                }
+                .onFailure {
+                    android.widget.Toast.makeText(context, "Could not update this track.", android.widget.Toast.LENGTH_LONG).show()
+                }
         }
         pendingMetadataUri = null
         pendingMetadataValues = null
@@ -222,6 +228,9 @@ private fun SonoraApp() {
     LaunchedEffect(loading, hasPermission) {
         if (loading && hasPermission) {
             tracks = withContext(Dispatchers.IO) { AudioRepository(context).loadTracks() }
+            currentTrack = currentTrack?.let { active ->
+                tracks.firstOrNull { it.id == active.id } ?: active
+            }
             loading = false
         }
     }
