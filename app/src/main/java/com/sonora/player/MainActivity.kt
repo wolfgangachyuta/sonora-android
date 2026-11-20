@@ -437,7 +437,6 @@ private fun HomePage(tracks: List<AudioTrack>, current: AudioTrack?, playing: Bo
 }
 
 @Composable
-@Composable
 private fun FeatureCard(current: AudioTrack?, playing: Boolean, ink: Color, panel: Color, muted: Color, onPlay: (AudioTrack) -> Unit, onScan: () -> Unit) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(panel).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
         AlbumArtwork(current?.albumId, Modifier.size(64.dp).clip(RoundedCornerShape(14.dp)))
@@ -453,6 +452,7 @@ private fun FeatureCard(current: AudioTrack?, playing: Boolean, ink: Color, pane
     }
 }
 
+@Composable
 private fun LibraryPage(tracks: List<AudioTrack>, loading: Boolean, permission: Boolean, query: String, onQuery: (String) -> Unit, onFilter: (String) -> Unit, filter: String, onScan: () -> Unit, onPlay: (AudioTrack) -> Unit, current: AudioTrack?, favorites: Set<String>, onFavorite: (AudioTrack) -> Unit, ink: Color, paper: Color, panel: Color, muted: Color) {
     var sortBy by remember { mutableStateOf("Recently added") }
     var showSort by remember { mutableStateOf(false) }
