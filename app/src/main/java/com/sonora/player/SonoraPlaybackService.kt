@@ -1,13 +1,13 @@
 package com.sonora.player
 
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 
 /**
- * Media playback host that can outlive the UI.
- * This milestone establishes the service/session foundation; the UI still uses
- * its current in-activity player until controller wiring is completed.
+ * Media playback host that survives UI navigation and exposes system media controls.
  */
 class SonoraPlaybackService : MediaSessionService() {
     companion object {
@@ -19,7 +19,13 @@ class SonoraPlaybackService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
-        val exo = ExoPlayer.Builder(this).build()
+        val exo = ExoPlayer.Builder(this).build().apply {
+            setAudioAttributes(
+                AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),
+                true
+            )
+            setHandleAudioBecomingNoisy(true)
+        }
         player = exo
         audioSessionId = exo.audioSessionId
         mediaSession = MediaSession.Builder(this, exo).build()
