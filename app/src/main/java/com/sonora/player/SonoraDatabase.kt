@@ -58,6 +58,8 @@ interface SonoraDao {
     suspend fun saveQueue(snapshot: SonoraQueueSnapshot)
     @Query("SELECT * FROM sonora_queue_snapshot WHERE id = 1 LIMIT 1")
     suspend fun queueSnapshot(): SonoraQueueSnapshot?
+    @Query("DELETE FROM sonora_queue_snapshot")
+    suspend fun clearQueue()
 }
 
 @Database(
