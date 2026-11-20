@@ -39,6 +39,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.room.*
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -99,6 +100,19 @@ data class AthenaeumShelf(
 )
 data class AthenaeumBookShelf(val bookId: Long, val shelfId: Long)
 
+@Entity(
+    tableName = "athenaeum_bookmarks",
+    foreignKeys = [ForeignKey(entity = AthenaeumBook::class, parentColumns = ["id"], childColumns = ["bookId"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index("bookId")]
+)
+data class AthenaeumBookmark(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val bookId: Long,
+    val location: Int,
+    val label: String,
+    val createdAt: Long = System.currentTimeMillis()
+)
+
 @Dao
 interface AthenaeumDao {
     @Query("SELECT * FROM athenaeum_books ORDER BY title COLLATE NOCASE")
@@ -121,15 +135,28 @@ interface AthenaeumDao {
     suspend fun updateProgress(id: Long, progress: Int, location: Int, openedAt: Long = System.currentTimeMillis())
     @Query("UPDATE athenaeum_books SET favorite=:favorite WHERE id=:id")
     suspend fun setFavorite(id: Long, favorite: Boolean)
+    @Insert
+    suspend fun addBookmark(bookmark: AthenaeumBookmark)
+    @Query("SELECT * FROM athenaeum_bookmarks WHERE bookId=:bookId ORDER BY createdAt DESC")
+    suspend fun bookmarks(bookId: Long): List<AthenaeumBookmark>
+    @Delete
+    suspend fun deleteBookmark(bookmark: AthenaeumBookmark)
 }
 
-@Database(entities = [AthenaeumBook::class, AthenaeumShelf::class, AthenaeumBookShelf::class], version = 1, exportSchema = false)
+@Database(entities = [AthenaeumBook::class, AthenaeumShelf::class, AthenaeumBookShelf::class, AthenaeumBookmark::class], version = 2, exportSchema = false)
 abstract class AthenaeumDatabase : RoomDatabase() {
     abstract fun dao(): AthenaeumDao
     companion object {
         @Volatile private var instance: AthenaeumDatabase? = null
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("CREATE TABLE IF NOT EXISTS athenaeum_bookmarks (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, bookId INTEGER NOT NULL, location INTEGER NOT NULL, label TEXT NOT NULL, createdAt INTEGER NOT NULL, FOREIGN KEY(bookId) REFERENCES athenaeum_books(id) ON UPDATE NO ACTION ON DELETE CASCADE)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_athenaeum_bookmarks_bookId ON athenaeum_bookmarks(bookId)")
+            }
+        }
         fun get(context: Context): AthenaeumDatabase = instance ?: synchronized(this) {
-            instance ?: Room.databaseBuilder(context.applicationContext, AthenaeumDatabase::class.java, "athenaeum.db").build().also { instance = it }
+            instance ?: Room.databaseBuilder(context.applicationContext, AthenaeumDatabase::class.java, "athenaeum.db")
+                .addMigrations(MIGRATION_1_2).build().also { instance = it }
         }
     }
 }
@@ -363,6 +390,12 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
     val textScroll = rememberScrollState(book.lastLocation.coerceAtLeast(0))
     var dark by remember { mutableStateOf(false) }
     var readerWebView by remember { mutableStateOf<WebView?>(null) }
+    var showBookmarks by remember { mutableStateOf(false) }
+    var savedBookmarks by remember(book.id) { mutableStateOf(emptyList<AthenaeumBookmark>()) }
+
+    LaunchedEffect(book.id, showBookmarks) {
+        if (showBookmarks) savedBookmarks = dao.bookmarks(book.id)
+    }
 
     DisposableEffect(readerWebView) {
         onDispose {
@@ -439,6 +472,14 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                 Text(book.author, color = AthenaGold, fontSize = 10.sp)
             }
             IconButton(onClick = { dark = !dark }) { Icon(Icons.Rounded.Contrast, "Toggle reading theme", tint = AthenaGold) }
+            IconButton(onClick = { showBookmarks = true }) { Icon(Icons.Rounded.Bookmarks, "Bookmarks", tint = AthenaGold) }
+            IconButton(onClick = {
+                scope.launch {
+                    val location = if (ext == "pdf") page else if (ext == "txt") textScroll.value else readerWebView?.scrollY ?: 0
+                    dao.addBookmark(AthenaeumBookmark(bookId = book.id, location = location, label = if (ext == "pdf") "Page ${page + 1}" else "Position $location"))
+                    savedBookmarks = dao.bookmarks(book.id)
+                }
+            }) { Icon(Icons.Rounded.BookmarkAdd, "Save bookmark", tint = AthenaGold) }
             IconButton(onClick = { textSize = (textSize + 1f).coerceAtMost(30f) }) { Icon(Icons.Rounded.TextIncrease, "Increase text size", tint = AthenaGold) }
         }
         if (ext == "pdf" && bitmap != null) {
@@ -493,5 +534,25 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                 TextButton(onClick = { scope.launch { dao.updateProgress(book.id, if (textScroll.maxValue > 0) (textScroll.value * 100 / textScroll.maxValue).coerceIn(0, 100) else 0, textScroll.value) } }) { Text("SAVE POSITION", color = AthenaGold) }
             }
         }
+    }
+    if (showBookmarks) {
+        AlertDialog(onDismissRequest = { showBookmarks = false }, title = { Text("Bookmarks · ${book.title}", fontFamily = FontFamily.Serif) },
+            text = {
+                Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
+                    if (savedBookmarks.isEmpty()) Text("No saved bookmarks yet.")
+                    savedBookmarks.forEach { mark ->
+                        Row(Modifier.fillMaxWidth().clickable {
+                            if (ext == "pdf") page = mark.location else if (ext == "txt") scope.launch { textScroll.scrollTo(mark.location) } else readerWebView?.scrollTo(0, mark.location)
+                            showBookmarks = false
+                        }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(mark.label, Modifier.weight(1f))
+                            IconButton(onClick = { scope.launch { dao.deleteBookmark(mark); savedBookmarks = dao.bookmarks(book.id) } }) {
+                                Icon(Icons.Rounded.DeleteOutline, "Delete bookmark")
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showBookmarks = false }) { Text("CLOSE") } })
     }
 }
