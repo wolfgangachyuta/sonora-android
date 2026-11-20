@@ -264,6 +264,24 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
             }.onFailure { message = "Backup failed: " + it.message }
         }
     }
+    val portableExportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        if (uri != null) scope.launch {
+            runCatching {
+                val output = context.contentResolver.openOutputStream(uri) ?: error("Could not create backup file")
+                AthenaeumBackup.writePortableZip(context, dao, output)
+                message = "Portable ZIP backup exported with accessible ebook and cover files."
+            }.onFailure { message = "ZIP backup failed: " + it.message }
+        }
+    }
+    val portableRestoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) scope.launch {
+            runCatching {
+                val input = context.contentResolver.openInputStream(uri) ?: error("Could not open backup file")
+                AthenaeumBackup.restorePortableZip(context, input, dao)
+                message = "Portable ZIP archive restored."
+            }.onFailure { message = "ZIP restore failed: " + it.message }
+        }
+    }
     val csvLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null) scope.launch {
             runCatching {
@@ -335,6 +353,8 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
             Box {
                 IconButton(onClick = { showBackupMenu = true }) { Icon(Icons.Rounded.MoreVert, "Backup and export options", tint = Color(0xFF454640)) }
                 DropdownMenu(expanded = showBackupMenu, onDismissRequest = { showBackupMenu = false }) {
+                    DropdownMenuItem(text = { Text("Export portable ZIP (with book files)") }, onClick = { showBackupMenu = false; portableExportLauncher.launch("athenaeum-portable-backup.zip") })
+                    DropdownMenuItem(text = { Text("Restore portable ZIP") }, onClick = { showBackupMenu = false; portableRestoreLauncher.launch(arrayOf("application/zip", "application/octet-stream")) })
                     DropdownMenuItem(text = { Text("Export library JSON archive") }, onClick = { showBackupMenu = false; exportLauncher.launch("athenaeum-backup.json") })
                     DropdownMenuItem(text = { Text("Export catalogue CSV") }, onClick = { showBackupMenu = false; csvLauncher.launch("athenaeum-catalogue.csv") })
                     DropdownMenuItem(text = { Text("Restore / merge JSON archive") }, onClick = { showBackupMenu = false; restoreLauncher.launch(arrayOf("application/json", "text/json", "text/plain")) })
