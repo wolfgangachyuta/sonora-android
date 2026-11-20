@@ -56,7 +56,8 @@ The repository currently ships one Android package containing two connected expe
 - [x] On-device OCR for scanned PDF pages and Android text-to-speech.
 - [ ] AZW/AZW3/KF8, CBR and broader comic/archive format support.
 - [ ] Full EPUB resource/DRM compatibility and a production-grade Readium-based rendering engine.
-- [ ] True in-reader text selection/highlight capture, annotation colours and exportable highlights.
+- [x] Capture selected WebView passages and re-render saved highlights in EPUB/HTML reader content.
+- [ ] Annotation colour choices, PDF-page highlight overlays and exportable highlight collections.
 - [ ] Dictionary lookup, robust pagination and typography controls across every format.
 - [ ] Accessibility audit and screen-reader/large-font verification.
 
