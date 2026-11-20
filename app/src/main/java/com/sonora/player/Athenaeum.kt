@@ -717,6 +717,9 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
     var showAnnotationEditor by remember { mutableStateOf(false) }
     var annotationQuote by remember { mutableStateOf("") }
     var annotationNote by remember { mutableStateOf("") }
+    var epubDocument by remember(book.id) { mutableStateOf<EpubDocument?>(null) }
+    var epubChapterIndex by remember(book.id) { mutableIntStateOf(book.progress.coerceIn(0, 100)) }
+    var showToc by remember { mutableStateOf(false) }
     val sessionStartedAt = remember(book.id) { System.currentTimeMillis() }
 
     LaunchedEffect(book.id, showBookmarks) {
@@ -754,6 +757,18 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                     bitmap = image
                 }.onFailure { content = "Could not open this PDF: ${it.message}" }
             }
+        } else if (ext == "epub") {
+            val parsed = withContext(Dispatchers.IO) {
+                runCatching {
+                    val bytes = context.contentResolver.openInputStream(Uri.parse(book.fileUri))!!.use { it.readBytes() }
+                    EpubParser.parse(bytes)
+                }
+            }
+            parsed.onSuccess { document ->
+                epubDocument = document
+                epubChapterIndex = ((book.progress.coerceIn(0, 100) * document.chapters.size) / 100).coerceIn(0, document.chapters.lastIndex)
+                content = document.chapters[epubChapterIndex].html
+            }.onFailure { content = "Unable to open this EPUB: " + it.message }
         } else {
             content = withContext(Dispatchers.IO) {
                 runCatching {
@@ -765,22 +780,6 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                             val xml = bytes.toString(Charsets.UTF_8)
                             val body = xml.substringAfter("<body", xml).substringAfter(">", xml).substringBefore("</body>", xml)
                             "<html><body>" + body.replace(Regex("<p[^>]*>"), "<p>") + "</body></html>"
-                        }
-                        "epub" -> {
-                            val output = StringBuilder()
-                            ZipInputStream(bytes.inputStream()).use { zip ->
-                                var entry = zip.nextEntry
-                                while (entry != null) {
-                                    if (!entry.isDirectory && (entry.name.endsWith(".xhtml", true) || entry.name.endsWith(".html", true) || entry.name.endsWith(".htm", true))) {
-                                        val stream = ByteArrayOutputStream()
-                                        zip.copyTo(stream)
-                                        output.append(stream.toString("UTF-8")).append("<hr/>")
-                                    }
-                                    zip.closeEntry()
-                                    entry = zip.nextEntry
-                                }
-                            }
-                            output.toString().ifBlank { "This EPUB contains no readable XHTML spine content." }
                         }
                         else -> "This format is not supported by the current reader. Supported formats in this release: EPUB, PDF, TXT and HTML."
                     }
@@ -808,6 +807,7 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                 Text(book.author, color = if (dark) Color(0xFFB9C7B4) else Color(0xFF6D7968), fontSize = 10.sp)
             }
             IconButton(onClick = { dark = !dark }) { Icon(Icons.Rounded.Contrast, "Toggle reading theme", tint = readerForeground) }
+            if (ext == "epub") IconButton(onClick = { showToc = true }) { Icon(Icons.Rounded.List, "Table of contents", tint = readerForeground) }
             IconButton(onClick = { showBookmarks = true }) { Icon(Icons.Rounded.Bookmarks, "Bookmarks", tint = readerForeground) }
             IconButton(onClick = { annotationQuote = ""; annotationNote = ""; showAnnotationEditor = true }) { Icon(Icons.Rounded.Highlight, "Add highlight or annotation", tint = readerForeground) }
             IconButton(onClick = {
@@ -859,7 +859,23 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                 if (web.tag != content) { web.tag = content; web.loadDataWithBaseURL(null, content, "text/html", "UTF-8", null) }
                 if (web.scrollY == 0 && book.lastLocation > 0) web.post { web.scrollTo(0, book.lastLocation) }
             }, modifier = Modifier.weight(1f).fillMaxWidth())
-            Text("EPUB / HTML reader · adjustable theme and library position", color = if (dark) AthenaParchment else AthenaWalnut, fontSize = 10.sp, modifier = Modifier.padding(12.dp))
+            if (ext == "epub" && epubDocument != null) {
+                Row(Modifier.fillMaxWidth().background(readerBar).padding(horizontal = 10.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = {
+                        epubChapterIndex = (epubChapterIndex - 1).coerceAtLeast(0)
+                        content = epubDocument!!.chapters[epubChapterIndex].html
+                        scope.launch { dao.updateProgress(book.id, (epubChapterIndex * 100 / epubDocument!!.chapters.size.coerceAtLeast(1)), readerWebView?.scrollY ?: 0) }
+                    }, enabled = epubChapterIndex > 0) { Text("Previous chapter", color = readerForeground) }
+                    Spacer(Modifier.weight(1f))
+                    Text("${epubChapterIndex + 1} / ${epubDocument!!.chapters.size}", color = readerForeground, fontSize = 10.sp)
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = {
+                        epubChapterIndex = (epubChapterIndex + 1).coerceAtMost(epubDocument!!.chapters.lastIndex)
+                        content = epubDocument!!.chapters[epubChapterIndex].html
+                        scope.launch { dao.updateProgress(book.id, (epubChapterIndex * 100 / epubDocument!!.chapters.size.coerceAtLeast(1)), 0) }
+                    }, enabled = epubChapterIndex < epubDocument!!.chapters.lastIndex) { Text("Next chapter", color = readerForeground) }
+                }
+            } else Text("HTML reader · adjustable theme and saved position", color = readerForeground, fontSize = 10.sp, modifier = Modifier.padding(12.dp))
         } else {
             Text(content, color = readerForeground, fontSize = textSize.sp, lineHeight = (textSize * 1.55f).sp,
                 modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(textScroll).padding(horizontal = 24.dp, vertical = 22.dp))
@@ -869,6 +885,27 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                 TextButton(onClick = { scope.launch { dao.updateProgress(book.id, if (textScroll.maxValue > 0) (textScroll.value * 100 / textScroll.maxValue).coerceIn(0, 100) else 0, textScroll.value) } }) { Text("SAVE POSITION", color = readerForeground) }
             }
         }
+    }
+    if (showToc && epubDocument != null) {
+        AlertDialog(
+            onDismissRequest = { showToc = false },
+            title = { Text("Contents · ${book.title}") },
+            text = {
+                Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                    epubDocument!!.chapters.forEachIndexed { index, chapter ->
+                        TextButton(onClick = {
+                            epubChapterIndex = index
+                            content = chapter.html
+                            showToc = false
+                            scope.launch { dao.updateProgress(book.id, (index * 100 / epubDocument!!.chapters.size.coerceAtLeast(1)), 0) }
+                        }, modifier = Modifier.fillMaxWidth()) {
+                            Text(chapter.title, color = if (index == epubChapterIndex) Color(0xFF56745D) else readerForeground, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showToc = false }) { Text("CLOSE") } }
+        )
     }
     if (showAnnotationEditor) {
         AlertDialog(
