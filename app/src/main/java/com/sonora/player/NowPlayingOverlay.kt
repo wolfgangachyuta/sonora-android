@@ -12,8 +12,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,8 +41,8 @@ fun NowPlayingOverlay(
     val secondary = if (dark) Color(0xFFA8AAA5) else Color(0xFF777B75)
     val accent = if (dark) Color(0xFFE7A6A0) else Color(0xFF9D3B35)
     val artworkShape = RoundedCornerShape(30.dp)
-    var showSleepTimer by remember { mutableStateOf(false) }
-    var showSpeedDialog by remember { mutableStateOf(false) }
+    val showSleepTimer = remember { mutableStateOf(false) }
+    val showSpeedDialog = remember { mutableStateOf(false) }
 
     Surface(Modifier.fillMaxSize(), color = backdrop, contentColor = foreground) {
         Box(Modifier.fillMaxSize()) {
@@ -190,13 +188,13 @@ fun NowPlayingOverlay(
                     Spacer(Modifier.width(8.dp))
                     Text("EDIT TRACK INFORMATION", fontSize = 9.sp, letterSpacing = 1.sp)
                 }
-                OutlinedButton(onClick = { showSpeedDialog = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = foreground)) {
+                OutlinedButton(onClick = { showSpeedDialog.value = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = foreground)) {
                     Icon(Icons.Rounded.Speed, null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
                     Text("PLAYBACK SPEED · ${playbackSpeed}×", fontSize = 9.sp, letterSpacing = 1.sp)
                 }
                 Spacer(Modifier.height(10.dp))
-                OutlinedButton(onClick = { showSleepTimer = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = foreground)) {
+                OutlinedButton(onClick = { showSleepTimer.value = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = foreground)) {
                     Icon(Icons.Rounded.Bedtime, null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(if (sleepMinutes == null) "SLEEP TIMER" else "SLEEP TIMER · PAUSES IN ${sleepMinutes} MIN", fontSize = 9.sp, letterSpacing = 1.sp)
@@ -205,40 +203,40 @@ fun NowPlayingOverlay(
             }
         }
     }
-    if (showSpeedDialog) {
+    if (showSpeedDialog.value) {
         AlertDialog(
-            onDismissRequest = { showSpeedDialog = false },
+            onDismissRequest = { showSpeedDialog.value = false },
             title = { Text("Playback speed", fontWeight = FontWeight.SemiBold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     listOf(0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f).forEach { speed ->
-                        TextButton(onClick = { onPlaybackSpeed(speed); showSpeedDialog = false }, modifier = Modifier.fillMaxWidth()) {
+                        TextButton(onClick = { onPlaybackSpeed(speed); showSpeedDialog.value = false }, modifier = Modifier.fillMaxWidth()) {
                             Text(if (speed == 1f) "Normal · 1×" else "${speed}×", color = if (playbackSpeed == speed) accent else foreground)
                         }
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { showSpeedDialog = false }) { Text("CLOSE") } }
+            confirmButton = { TextButton(onClick = { showSpeedDialog.value = false }) { Text("CLOSE") } }
         )
     }
-    if (showSleepTimer) {
+    if (showSleepTimer.value) {
         AlertDialog(
-            onDismissRequest = { showSleepTimer = false },
+            onDismissRequest = { showSleepTimer.value = false },
             title = { Text("Sleep timer", fontWeight = FontWeight.SemiBold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Pause playback automatically after a little while.", color = secondary, fontSize = 12.sp)
                     listOf(15, 30, 45, 60, 90).forEach { minutes ->
-                        TextButton(onClick = { onSleepTimer(minutes); showSleepTimer = false }, modifier = Modifier.fillMaxWidth()) {
+                        TextButton(onClick = { onSleepTimer(minutes); showSleepTimer.value = false }, modifier = Modifier.fillMaxWidth()) {
                             Text("$minutes minutes", color = foreground)
                         }
                     }
-                    if (sleepMinutes != null) TextButton(onClick = { onSleepTimer(null); showSleepTimer = false }, modifier = Modifier.fillMaxWidth()) {
+                    if (sleepMinutes != null) TextButton(onClick = { onSleepTimer(null); showSleepTimer.value = false }, modifier = Modifier.fillMaxWidth()) {
                         Text("Cancel active timer", color = accent)
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { showSleepTimer = false }) { Text("CLOSE") } }
+            confirmButton = { TextButton(onClick = { showSleepTimer.value = false }) { Text("CLOSE") } }
         )
     }
 }
