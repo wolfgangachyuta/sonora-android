@@ -48,7 +48,7 @@ fun TrackMetadataEditor(
         title = { Text("Edit audio metadata") },
         text = {
             Column(Modifier.fillMaxWidth().heightIn(max = 520.dp).verticalScroll(rememberScrollState())) {
-                Text("Edit the title, credits and release details shown in your Android music library.")
+                Text("Changes are written into MP3 ID3 tags or FLAC Vorbis comments, then refreshed in your music library. Other audio formats are not supported yet.")
                 OutlinedTextField(title, { title = it }, label = { Text("Title") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(artist, { artist = it }, label = { Text("Artist") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(album, { album = it }, label = { Text("Album") }, singleLine = true, modifier = Modifier.fillMaxWidth())
