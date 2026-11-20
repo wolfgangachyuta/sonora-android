@@ -1,82 +1,72 @@
-# SONORA roadmap
+# Product roadmap — SONORA + Athenaeum
 
-This roadmap separates shipped foundations from planned work. A milestone is complete only after code is merged, CI passes, and the feature has been exercised on an Android device.
+The repository currently ships one Android package containing two connected experiences: SONORA (music player) and Athenaeum (personal library and reader). A feature is not considered release-verified until the debug build succeeds and it has been exercised on supported Android devices. Source implementation and runtime verification are tracked separately.
 
-## Phase 1 — Local playback foundation
+## SONORA — music player
 
-**Status: implemented; initial device verification still needed**
+### Playback and system integration
+- [x] Kotlin + Jetpack Compose application and MediaStore audio discovery.
+- [x] Media3 ExoPlayer playback, mini-player, full-screen Now Playing, seek, previous/next.
+- [x] MediaSessionService + MediaController playback ownership outside the activity.
+- [x] System media metadata and album-art URI attached to queue items.
+- [x] Audio focus handling, headset/noisy-route pause handling, local wake mode.
+- [x] Playback notification and lock-screen integration through MediaSessionService.
+- [x] Queue persistence in Room, including current index and playback position.
+- [x] Editable queue with move-up/down, remove, and play-from-position.
+- [x] Playback speed, shuffle, repeat, and sleep timer.
+- [ ] Verify notification, lock-screen, Bluetooth/headset and process-death behaviour on physical devices.
 
-- [x] Kotlin + Jetpack Compose Android app scaffold
-- [x] MediaStore-based audio discovery
-- [x] Permission request for local audio access
-- [x] Track library and basic search
-- [x] Media3 ExoPlayer playback sequence
-- [x] Mini-player and basic transport actions
-- [ ] Physical-device verification across supported Android versions
+### Library and personalisation
+- [x] Tracks, albums, artists, folders, search, favourites, refresh and sorting.
+- [x] MediaStore album artwork and embedded audio tag editing.
+- [x] Persistent favourites, playlists, playlist tracks, listening history and queue in Room.
+- [x] Playlist creation, rename, delete, add/remove tracks and track reordering.
+- [x] Local LRC import, adjacent LRC discovery and timed lyrics.
+- [x] System equalizer where available.
+- [x] Listening statistics, artist/track rotation, monthly and rolling 30-day summaries.
+- [x] Light/dark appearance and artwork-derived accent with fixed user-selectable palettes.
+- [ ] Actual audio visualisation/capture with permission and device compatibility review.
+- [ ] More complete play-duration analytics and richer monthly reports.
+- [ ] Automated unit/UI tests and accessibility audit.
 
-## Phase 2 — Listening experience and project documentation
+### Release readiness
+- [ ] Device matrix testing (Android 8 through current Android).
+- [ ] Small-screen, tablet and large-font verification.
+- [ ] Signed release configuration, versioning and distribution checklist.
+- [ ] Privacy policy and store listing before public distribution.
 
-**Status: implementation submitted; CI/device verification pending**
+## Athenaeum — personal library and reader
 
-- [x] Dedicated Now Playing screen
-- [x] Playback progress and seek interaction
-- [x] Consistent visual direction and reusable screen components
-- [x] Architecture, build/test, design-system, and roadmap documentation
-- [ ] Verify seek, previous/next, and layout on a physical device
-- [ ] Review accessibility and small-screen behaviour
+### Catalogue and collections
+- [x] Physical, digital and mixed-ownership catalogue records.
+- [x] Metadata editor, cover picker, ratings, reading status, favourites and notes.
+- [x] Multiple-file import, persistent URI permissions, search and sorting.
+- [x] Custom shelves and book-to-shelf assignments.
+- [x] Continue Reading, progress, yearly goal, grid/list layouts and deletion.
+- [x] Optional ISBN metadata lookup using Google Books.
+- [x] Three Android home-screen widgets: Continue Reading, library overview and random pick.
 
-## Phase 3 — Durable library and playback service
+### Reader
+- [x] PDF, TXT, HTML, FB2, EPUB 2/3 (OPF manifest/spine and NCX/EPUB3 TOC), legacy PalmDOC MOBI 6, RTF, Markdown and CBZ.
+- [x] EPUB chapter navigation and offline inlining of local chapter images and CSS.
+- [x] PDF page navigation, reader themes, text sizing, bookmarks and saved progress.
+- [x] Manual passage annotations and notes, Commonplace Book and reading-session statistics.
+- [x] On-device OCR for scanned PDF pages and Android text-to-speech.
+- [ ] AZW/AZW3/KF8, CBR and broader comic/archive format support.
+- [ ] Full EPUB resource/DRM compatibility and a production-grade Readium-based rendering engine.
+- [ ] True in-reader text selection/highlight capture, annotation colours and exportable highlights.
+- [ ] Dictionary lookup, robust pagination and typography controls across every format.
+- [ ] Accessibility audit and screen-reader/large-font verification.
 
-**Status: underway — service/session groundwork and persistent favourites committed; controller migration still pending**
+### Archive, portability and future services
+- [x] Room persistence and versioned migrations for books, shelves, bookmarks, annotations, commonplace entries and reading sessions.
+- [x] JSON archive export/restore and catalogue CSV export.
+- [ ] Package the underlying ebook and cover files into portable backup archives; current JSON backup preserves URI references and catalogue/archive data, not ebook binaries.
+- [ ] OCR batch workflow and searchable OCR text archive.
+- [ ] Optional cloud sync with conflict handling and explicit user-controlled provider setup.
+- [ ] More advanced search, quotation/tag indexing and reading timelines.
+- [ ] Additional configurable widgets (favourites, custom shelf and compact formats).
 
-- [x] Add Media3 Session dependency
-- [x] Declare media playback service and foreground-service permissions
-- [x] Create MediaSessionService host with ExoPlayer + MediaSession
-- [x] Persist favourite IDs across restarts (SharedPreferences interim storage)
-- [ ] Wire UI to MediaController and migrate active playback to service
-- [ ] Add media notification and lock-screen controls
-- [ ] Handle audio focus, noisy-route events, headset actions, and service lifecycle
-- [ ] Move persistence to Room and create playlists
-- [ ] Persist and restore the queue
-- [ ] Add robust sorting and library refresh
+## Build and verification policy
 
-## Phase 4 — Rich music library
-
-- [ ] Introduce Room for favourites, playlists, play history, and preferences
-- [ ] Move playback into MediaSessionService
-- [ ] Add media notification and lock-screen controls
-- [ ] Handle audio focus, noisy-route events, headset actions, and service lifecycle
-- [ ] Persist and restore the queue
-- [ ] Add robust sorting and library refresh
-
-## Phase 4 — Rich music library
-
-- [ ] Real album artwork from MediaStore and embedded metadata where available
-- [ ] Dedicated Albums and Artists browsing
-- [ ] Folder browsing
-- [ ] Editable queue and play-next actions
-- [ ] Playlist creation, editing, and reordering
-- [ ] Better handling for compilation albums and unknown metadata
-
-## Phase 5 — Personal listening tools
-
-- [ ] Local `.lrc` lyric discovery and timed display
-- [ ] Equalizer integration where supported by the platform/device
-- [ ] Shuffle and repeat modes with visible state
-- [ ] Listening history and play counts
-- [ ] Listening-time and artist/album statistics
-- [ ] Monthly listening summaries
-
-## Phase 6 — Polish and release readiness
-
-- [ ] Complete light and dark themes
-- [ ] Dynamic accent derived from artwork, with user override
-- [ ] Motion and visualisation settings
-- [ ] Accessibility audit and large-font testing
-- [ ] Unit and UI test coverage
-- [ ] Signed release build and versioning process
-- [ ] Privacy policy and release checklist if distribution requires them
-
-## Priority order
-
-The next highest-value engineering work after this UI milestone is a proper MediaSessionService. It removes the current dependency on a visible screen for reliable background playback and provides the system integration expected of a music player. Persistence should follow so favourites, playlists, and history survive restarts.
+GitHub Actions remains manual-only (workflow_dispatch). Pushes and pull requests must not trigger builds. Do not run a build unless explicitly requested. Source changes in this roadmap are not a claim that a successful build or device test has occurred.
