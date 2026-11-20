@@ -185,8 +185,8 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
     var shelfDialog by remember { mutableStateOf(false) }
     var shelfName by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
-    var gridMode by remember { mutableStateOf(true) }
-    var sortBy by remember { mutableStateOf("Recently added") }
+    var gridMode by remember { mutableStateOf(preferences.getBoolean("grid_mode", true)) }
+    var sortBy by remember { mutableStateOf(preferences.getString("sort_books_by", "Recently added") ?: "Recently added") }
     var showSort by remember { mutableStateOf(false) }
 
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
@@ -311,11 +311,11 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
                 IconButton(onClick = { showSort = true }) { Icon(Icons.Rounded.Sort, "Sort books", tint = Color(0xFF454640)) }
                 DropdownMenu(expanded = showSort, onDismissRequest = { showSort = false }) {
                     listOf("Recently added", "Title A–Z", "Author A–Z", "Progress").forEach { option ->
-                        DropdownMenuItem(text = { Text(option) }, onClick = { sortBy = option; showSort = false })
+                        DropdownMenuItem(text = { Text(option) }, onClick = { sortBy = option; preferences.edit().putString("sort_books_by", option).apply(); showSort = false })
                     }
                 }
             }
-            IconButton(onClick = { gridMode = !gridMode }) {
+            IconButton(onClick = { gridMode = !gridMode; preferences.edit().putBoolean("grid_mode", gridMode).apply() }) {
                 Icon(if (gridMode) Icons.Rounded.ViewList else Icons.Rounded.GridView, if (gridMode) "Switch to list" else "Switch to grid", tint = Color(0xFF454640))
             }
         }
