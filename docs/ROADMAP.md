@@ -46,6 +46,8 @@ The repository currently ships one Android package containing two connected expe
 - [x] Custom shelves and book-to-shelf assignments.
 - [x] Continue Reading, progress, yearly goal, grid/list layouts and deletion.
 - [x] Optional ISBN metadata lookup using Google Books.
+- [x] Dedicated Athenaeum launcher entry and icon, separate from the SONORA launcher entry within the same APK.
+- [x] EPUB package metadata and cover-image extraction during import.
 - [x] Three Android home-screen widgets: Continue Reading, library overview and random pick.
 
 ### Reader
