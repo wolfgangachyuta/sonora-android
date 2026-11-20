@@ -886,7 +886,18 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                     .addOnFailureListener { error -> ocrError = error.message ?: "OCR could not read this page."; showOcr = true; recognizer.close() }
             }) { Icon(Icons.Rounded.DocumentScanner, "Extract text from PDF page", tint = readerForeground) }
             IconButton(onClick = { showBookmarks = true }) { Icon(Icons.Rounded.Bookmarks, "Bookmarks", tint = readerForeground) }
-            IconButton(onClick = { annotationQuote = ""; annotationNote = ""; showAnnotationEditor = true }) { Icon(Icons.Rounded.Highlight, "Add highlight or annotation", tint = readerForeground) }
+            IconButton(onClick = {
+                val web = readerWebView
+                if (web == null) {
+                    annotationQuote = ""; annotationNote = ""; showAnnotationEditor = true
+                } else {
+                    web.evaluateJavascript("(function(){return window.getSelection().toString();})()") { raw ->
+                        annotationQuote = runCatching { JSONTokener(raw).nextValue() as? String }.getOrNull().orEmpty()
+                        annotationNote = ""
+                        showAnnotationEditor = true
+                    }
+                }
+            }) { Icon(Icons.Rounded.Highlight, "Save selected passage or add a note", tint = readerForeground) }
             IconButton(onClick = {
                 scope.launch {
                     val location = if (ext == "pdf") page else if (ext == "txt") textScroll.value else if (ext == "epub") epubChapterIndex else readerWebView?.scrollY ?: 0
@@ -943,7 +954,10 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                     .replace("font-size:1.08em", "font-size:${textSize}px")
             }
             AndroidView(factory = { ctx -> WebView(ctx).apply {
-                settings.javaScriptEnabled = false
+                settings.javaScriptEnabled = true
+                settings.blockNetworkLoads = true
+                settings.allowFileAccess = false
+                settings.allowContentAccess = false
                 settings.domStorageEnabled = false
                 webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView?, url: String?) {
@@ -951,12 +965,18 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                     }
                 }
                 setBackgroundColor(if (dark) android.graphics.Color.rgb(23, 25, 22) else android.graphics.Color.rgb(247, 246, 241))
-                tag = themedContent
+                val safeHtml = themedContent.replace(Regex("(?is)<script\\b[^>]*>.*?</script>"), "")
+                    .replace(Regex("(?i)\\s+on[a-z]+\\s*=\\s*(['\"]).*?\\1"), "")
+                    .replace(Regex("(?i)href\\s*=\\s*(['\"])javascript:.*?\\1"), "")
+                tag = safeHtml
                 readerWebView = this
-                loadDataWithBaseURL(null, themedContent, "text/html", "UTF-8", null)
+                loadDataWithBaseURL(null, safeHtml, "text/html", "UTF-8", null)
             } }, update = { web ->
                 web.setBackgroundColor(if (dark) android.graphics.Color.DKGRAY else android.graphics.Color.rgb(233, 222, 198))
-                if (web.tag != themedContent) { web.tag = themedContent; web.loadDataWithBaseURL(null, themedContent, "text/html", "UTF-8", null) }
+                val safeHtml = themedContent.replace(Regex("(?is)<script\\b[^>]*>.*?</script>"), "")
+                    .replace(Regex("(?i)\\s+on[a-z]+\\s*=\\s*(['\"]).*?\\1"), "")
+                    .replace(Regex("(?i)href\\s*=\\s*(['\"])javascript:.*?\\1"), "")
+                if (web.tag != safeHtml) { web.tag = safeHtml; web.loadDataWithBaseURL(null, safeHtml, "text/html", "UTF-8", null) }
                 if (web.scrollY == 0 && book.lastLocation > 0) web.post { web.scrollTo(0, book.lastLocation) }
             }, modifier = Modifier.weight(1f).fillMaxWidth())
             if (ext == "epub" && epubDocument != null) {
