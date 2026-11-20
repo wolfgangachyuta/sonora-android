@@ -1,13 +1,113 @@
 package com.sonora.player
 
+import android.content.Context
+import android.net.Uri
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
 
 /**
  * Versioned, portable JSON archive. File URIs are preserved as references;
  * the actual ebook files remain in their original Android document locations.
  */
 object AthenaeumBackup {
+    suspend fun writePortableZip(context: Context, dao: AthenaeumDao, output: OutputStream) {
+        val root = JSONObject(export(dao))
+        val books = root.getJSONArray("books")
+        ZipOutputStream(output).use { zip ->
+            for (index in 0 until books.length()) {
+                val book = books.getJSONObject(index)
+                val id = book.optLong("id")
+                val extension = book.optString("fileType").ifBlank { "book" }.replace(Regex("[^a-zA-Z0-9]"), "")
+                val sourceUri = book.optString("fileUri")
+                if (sourceUri.isNotBlank()) {
+                    val entry = "files/books/$id.$extension"
+                    if (copyUriIntoZip(context, Uri.parse(sourceUri), zip, entry)) book.put("fileUri", "zip:$entry")
+                }
+                val coverUri = book.optString("coverUri")
+                if (coverUri.isNotBlank()) {
+                    val entry = "files/covers/$id.cover"
+                    if (copyUriIntoZip(context, Uri.parse(coverUri), zip, entry)) book.put("coverUri", "zip:$entry")
+                }
+            }
+            zip.putNextEntry(ZipEntry("athenaeum.json"))
+            zip.write(root.toString(2).toByteArray(Charsets.UTF_8))
+            zip.closeEntry()
+        }
+    }
+
+    private fun copyUriIntoZip(context: Context, uri: Uri, zip: ZipOutputStream, entryName: String): Boolean {
+        val input = runCatching { context.contentResolver.openInputStream(uri) }.getOrNull() ?: return false
+        var opened = false
+        return try {
+            zip.putNextEntry(ZipEntry(entryName))
+            opened = true
+            input.use { it.copyTo(zip) }
+            zip.closeEntry()
+            true
+        } catch (_: Exception) {
+            if (opened) runCatching { zip.closeEntry() }
+            false
+        } finally {
+            runCatching { input.close() }
+        }
+    }
+
+    suspend fun restorePortableZip(context: Context, input: InputStream, dao: AthenaeumDao) {
+        val destination = File(context.filesDir, "athenaeum_import").apply { mkdirs() }.canonicalFile
+        val extracted = mutableMapOf<String, File>()
+        var metadata: String? = null
+        var totalBytes = 0L
+        var entryCount = 0
+        ZipInputStream(input).use { zip ->
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                entryCount++
+                require(entryCount <= 10_000) { "Backup contains too many files." }
+                if (!entry.isDirectory) {
+                    if (entry.name == "athenaeum.json") {
+                        metadata = zip.readBytes().toString(Charsets.UTF_8)
+                    } else if (entry.name.startsWith("files/")) {
+                        val target = File(destination, entry.name).canonicalFile
+                        require(target.path.startsWith(destination.path + File.separator)) { "Unsafe path in backup." }
+                        target.parentFile?.mkdirs()
+                        target.outputStream().use { output ->
+                            val buffer = ByteArray(16 * 1024)
+                            while (true) {
+                                val read = zip.read(buffer)
+                                if (read <= 0) break
+                                totalBytes += read
+                                require(totalBytes <= 2_000_000_000L) { "Backup exceeds the 2 GB import limit." }
+                                output.write(buffer, 0, read)
+                            }
+                        }
+                        extracted[entry.name] = target
+                    }
+                }
+                zip.closeEntry()
+            }
+        }
+        val root = JSONObject(metadata ?: error("The ZIP does not contain athenaeum.json"))
+        val books = root.optJSONArray("books") ?: JSONArray()
+        for (index in 0 until books.length()) {
+            val book = books.getJSONObject(index)
+            listOf("fileUri", "coverUri").forEach { field ->
+                val token = book.optString(field)
+                if (token.startsWith("zip:")) {
+                    val file = extracted[token.removePrefix("zip:")]
+                    if (file != null) book.put(field, Uri.fromFile(file).toString())
+                    else book.put(field, "")
+                }
+            }
+        }
+        restore(root.toString(), dao)
+    }
+
     suspend fun exportCsv(dao: AthenaeumDao): String {
         fun cell(value: String) = "\"" + value.replace("\"", "\"\"").replace("\r", " ").replace("\n", " ") + "\""
         val rows = mutableListOf("Title,Author,Publisher,Year,ISBN,Genre,Language,Status,Ownership,Rating,Progress,Digital URI")
