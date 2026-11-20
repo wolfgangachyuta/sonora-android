@@ -43,7 +43,7 @@ AudioRepository queries MediaStore for track identifiers, title, artist, album, 
 
 AthenaeumDatabase is a separate Room database (athenaeum.db) with versioned migrations. It stores books, shelves, book/shelf assignments, bookmarks, annotations, Commonplace Book entries and reading sessions.
 
-AthenaeumBackup exports/restores the structured catalogue and archive records as versioned JSON and exports catalogue CSV. Digital file and cover URIs are preserved as references; the ebook binaries are not copied into the JSON backup.
+AthenaeumBackup exports/restores the structured catalogue and archive records as versioned JSON, exports catalogue CSV, and creates a portable ZIP containing accessible ebook and cover files alongside metadata. JSON-only exports preserve URI references; ZIP restore extracts packaged files into app-private storage and rewrites their URIs.
 
 The reader currently includes:
 - PDF rendering through Android PdfRenderer.
