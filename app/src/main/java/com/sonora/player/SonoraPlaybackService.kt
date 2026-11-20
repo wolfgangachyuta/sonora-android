@@ -19,13 +19,16 @@ class SonoraPlaybackService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
-        val exo = ExoPlayer.Builder(this).build().apply {
-            setAudioAttributes(
-                AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),
-                true
-            )
-            setHandleAudioBecomingNoisy(true)
-        }
+        val exo = ExoPlayer.Builder(this)
+            .setWakeMode(C.WAKE_MODE_LOCAL)
+            .setHandleAudioBecomingNoisy(true)
+            .build()
+            .apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),
+                    true
+                )
+            }
         player = exo
         audioSessionId = exo.audioSessionId
         mediaSession = MediaSession.Builder(this, exo).build()
