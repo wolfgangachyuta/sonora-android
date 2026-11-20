@@ -39,7 +39,7 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.8.0")
     implementation("androidx.media3:media3-common:1.8.0")
     implementation("androidx.media3:media3-session:1.8.0")
-    implementation("net.jthink:jaudiotagger:3.0.1")
+    implementation("com.github.adonai:jaudiotagger-android:2.3.15")
     implementation("io.github.junkfood02.youtubedl-android:library:0.18.1")
     implementation("io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1")
     debugImplementation("androidx.compose.ui:ui-tooling")
