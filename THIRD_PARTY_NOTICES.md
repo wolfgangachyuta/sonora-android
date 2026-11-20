@@ -16,3 +16,11 @@ A copy of the GPL-3.0 licence text is included at [LICENSES/GPL-3.0.txt](LICENSE
 ## YouTube and other media sources
 
 SONORA Fetch is a general yt-dlp client. Use it only for media you own or are authorised to download. Respect copyright, platform terms, and applicable law. SONORA does not attempt to bypass DRM or access controls.
+
+## Google ML Kit Text Recognition
+
+Athenaeum uses the bundled Google ML Kit Text Recognition Android SDK:
+
+- Maven coordinates: `com.google.mlkit:text-recognition:16.0.1`
+- Purpose: on-device OCR for the currently displayed PDF page.
+- Review the applicable Google ML Kit SDK terms and notices before distributing builds.
