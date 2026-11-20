@@ -24,6 +24,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -635,14 +636,103 @@ private fun EqualizerPage(audioSessionId: Int, ink: Color, panel: Color, muted: 
     DisposableEffect(eq) { onDispose { eq.release() } }
     var enabled by remember(eq) { mutableStateOf(eq.enabled) }
     var levels by remember(eq) { mutableStateOf((0 until eq.bands).map { eq.level(it).toFloat() }) }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back", tint = ink) }; Column { Text("SOUND SHAPING", fontSize = 8.sp, color = muted, letterSpacing = 1.4.sp); Text("Equalizer", fontSize = 30.sp, color = ink) } } }
-        item { SettingToggle("Equalizer", "Adjust the device audio effect", enabled, { enabled = it; eq.setEnabled(it) }, ink, panel, muted) }
-        item { Text("START WITH A PRESET", fontSize = 9.sp, color = muted, letterSpacing = 1.5.sp) }
-        items(eq.presetNames) { preset -> Button(onClick = { val index = eq.presetNames.indexOf(preset); if (index >= 0) { eq.usePreset(index); levels = (0 until eq.bands).map { eq.level(it).toFloat() } } }, colors = ButtonDefaults.buttonColors(containerColor = panel, contentColor = ink)) { Text(preset) } }
-        item { Text("FINE TUNE", fontSize = 9.sp, color = muted, letterSpacing = 1.5.sp) }
-        items((0 until eq.bands).toList()) { band -> Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(panel).padding(12.dp)) { Row { Text((eq.frequency(band).toString() + " Hz"), Modifier.weight(1f), color = ink); Text(levels[band].toInt().toString() + " dB", color = muted) }; Slider(value = levels[band], onValueChange = { v -> levels = levels.toMutableList().also { it[band] = v }; eq.setBandLevel(band, v.toInt()) }, valueRange = eq.range[0].toFloat()..eq.range[1].toFloat(), enabled = enabled) } }
-        item { Text("Hardware support and available bands depend on your device.", fontSize = 10.sp, color = muted) }
+    val presets = eq.presetNames
+    val range = eq.range
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back", tint = ink) }
+                Column(Modifier.weight(1f)) {
+                    Text("PERSONAL SOUND", fontSize = 9.sp, color = muted, letterSpacing = 1.8.sp)
+                    Text("Equalizer", fontSize = 34.sp, color = ink, fontWeight = FontWeight.Medium, letterSpacing = (-1.5).sp)
+                }
+                Icon(Icons.Rounded.GraphicEq, null, tint = ink, modifier = Modifier.size(30.dp))
+            }
+        }
+        item {
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(panel).padding(18.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Audio processing", color = ink, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                        Text("System equalizer · current playback session", color = muted, fontSize = 10.sp)
+                    }
+                    Switch(checked = enabled, onCheckedChange = { enabled = it; eq.setEnabled(it) })
+                }
+                Spacer(Modifier.height(12.dp))
+                Text(if (enabled) "ACTIVE" else "BYPASSED", color = if (enabled) AccentDeep else muted,
+                    fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+            }
+        }
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("LISTENING PROFILES", color = muted, fontSize = 9.sp, letterSpacing = 1.6.sp, modifier = Modifier.weight(1f))
+                TextButton(onClick = {
+                    if (eq.bands > 0) {
+                        levels = (0 until eq.bands).map { 0f }
+                        levels.indices.forEach { eq.setBandLevel(it, 0) }
+                    }
+                }, enabled = enabled && eq.bands > 0) { Text("RESET") }
+            }
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                presets.forEachIndexed { index, preset ->
+                    FilterChip(
+                        selected = false,
+                        onClick = {
+                            eq.usePreset(index)
+                            levels = (0 until eq.bands).map { eq.level(it).toFloat() }
+                            enabled = true
+                            eq.setEnabled(true)
+                        },
+                        label = { Text(preset, fontSize = 11.sp) },
+                        enabled = eq.bands > 0
+                    )
+                }
+            }
+        }
+        if (eq.bands == 0) {
+            item {
+                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(panel).padding(20.dp)) {
+                    Text("Equalizer unavailable", color = ink, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(6.dp))
+                    Text("This device or playback session does not expose a system equalizer. Try again after playback has started.", color = muted, fontSize = 11.sp)
+                }
+            }
+        } else {
+            item { Text("FREQUENCY CONTROL", color = muted, fontSize = 9.sp, letterSpacing = 1.6.sp) }
+            items((0 until eq.bands).toList()) { band ->
+                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(panel).padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                if (eq.frequency(band) >= 1000) String.format("%.1f kHz", eq.frequency(band) / 1000f) else "${eq.frequency(band)} Hz",
+                                color = ink, fontWeight = FontWeight.SemiBold, fontSize = 13.sp
+                            )
+                            Text(
+                                when (band) { 0 -> "LOW FREQUENCY"; eq.bands - 1 -> "HIGH FREQUENCY"; else -> "MID FREQUENCY" },
+                                color = muted, fontSize = 8.sp, letterSpacing = 1.1.sp
+                            )
+                        }
+                        Text(String.format("%+.1f dB", levels[band] / 100f), color = ink, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    }
+                    Slider(
+                        value = levels[band],
+                        onValueChange = { value ->
+                            levels = levels.toMutableList().also { it[band] = value }
+                            eq.setBandLevel(band, value.toInt())
+                        },
+                        valueRange = range[0].toFloat()..range[1].toFloat(),
+                        enabled = enabled
+                    )
+                }
+            }
+        }
+        item {
+            Text("Equalizer availability and frequency bands are supplied by Android and vary by device. Changes affect the active SONORA playback session.", color = muted, fontSize = 10.sp, lineHeight = 15.sp)
+        }
     }
 }
 @Composable
