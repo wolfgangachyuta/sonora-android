@@ -2,6 +2,7 @@ package com.sonora.player
 
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -31,6 +32,11 @@ class SonoraPlaybackService : MediaSessionService() {
             }
         player = exo
         audioSessionId = exo.audioSessionId
+        exo.addListener(object : Player.Listener {
+            override fun onAudioSessionIdChanged(audioSessionId: Int) {
+                Companion.audioSessionId = audioSessionId
+            }
+        })
         mediaSession = MediaSession.Builder(this, exo).build()
     }
 
