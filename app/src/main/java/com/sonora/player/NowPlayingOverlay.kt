@@ -29,7 +29,8 @@ fun NowPlayingOverlay(
     onClose: () -> Unit, shuffle: Boolean, onShuffle: (Boolean) -> Unit, repeat: Int, onRepeat: (Int) -> Unit,
     favorite: Boolean, onFavorite: () -> Unit, onLyrics: () -> Unit,
     onMetadata: () -> Unit, onEqualizer: () -> Unit,
-    sleepMinutes: Int?, onSleepTimer: (Int?) -> Unit
+    sleepMinutes: Int?, onSleepTimer: (Int?) -> Unit,
+    playbackSpeed: Float, onPlaybackSpeed: (Float) -> Unit
 ) {
     val safeDuration = duration.coerceAtLeast(1L)
     val progress = position.coerceIn(0L, safeDuration)
@@ -39,6 +40,7 @@ fun NowPlayingOverlay(
     val accent = if (dark) Color(0xFFE7A6A0) else Color(0xFF9D3B35)
     val artworkShape = RoundedCornerShape(30.dp)
     var showSleepTimer by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var showSpeedDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
 
     Surface(Modifier.fillMaxSize(), color = backdrop, contentColor = foreground) {
         Box(Modifier.fillMaxSize()) {
@@ -184,7 +186,12 @@ fun NowPlayingOverlay(
                     Spacer(Modifier.width(8.dp))
                     Text("EDIT TRACK INFORMATION", fontSize = 9.sp, letterSpacing = 1.sp)
                 }
-                Spacer(Modifier.height(12.dp))
+                OutlinedButton(onClick = { showSpeedDialog = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = foreground)) {
+                    Icon(Icons.Rounded.Speed, null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("PLAYBACK SPEED · ${playbackSpeed}×", fontSize = 9.sp, letterSpacing = 1.sp)
+                }
+                Spacer(Modifier.height(10.dp))
                 OutlinedButton(onClick = { showSleepTimer = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = foreground)) {
                     Icon(Icons.Rounded.Bedtime, null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(8.dp))
@@ -193,6 +200,22 @@ fun NowPlayingOverlay(
                 Spacer(Modifier.height(24.dp))
             }
         }
+    }
+    if (showSpeedDialog) {
+        AlertDialog(
+            onDismissRequest = { showSpeedDialog = false },
+            title = { Text("Playback speed", fontWeight = FontWeight.SemiBold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    listOf(0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f).forEach { speed ->
+                        TextButton(onClick = { onPlaybackSpeed(speed); showSpeedDialog = false }, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (speed == 1f) "Normal · 1×" else "${speed}×", color = if (playbackSpeed == speed) accent else foreground)
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showSpeedDialog = false }) { Text("CLOSE") } }
+        )
     }
     if (showSleepTimer) {
         AlertDialog(
