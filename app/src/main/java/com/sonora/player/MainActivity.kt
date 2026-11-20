@@ -71,7 +71,7 @@ private val PanelDark = Color(0xFF1C1E25)
 private val MutedLight = Color(0xFF8A887F)
 private val MutedDark = Color(0xFFA0A0A0)
 private val Accent = Color(0xFFC96F52)
-val AccentDeep = Accent
+var AccentDeep by mutableStateOf(Accent)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -128,6 +128,28 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
 
     var tracks by remember { mutableStateOf(emptyList<AudioTrack>()) }
     var currentTrack by remember { mutableStateOf<AudioTrack?>(null) }
+
+    LaunchedEffect(currentTrack?.albumId) {
+        val albumId = currentTrack?.albumId
+        AccentDeep = if (albumId == null) Accent else withContext(Dispatchers.IO) {
+            runCatching {
+                val uri = Uri.parse("content://media/external/audio/albumart/$albumId")
+                context.contentResolver.openInputStream(uri)?.use { stream ->
+                    val options = BitmapFactory.Options().apply { inSampleSize = 16 }
+                    val bitmap = BitmapFactory.decodeStream(stream, null, options)
+                    if (bitmap != null) {
+                        val pixel = bitmap.getPixel(bitmap.width / 2, bitmap.height / 2)
+                        bitmap.recycle()
+                        val hsv = FloatArray(3)
+                        android.graphics.Color.colorToHSV(pixel, hsv)
+                        hsv[1] = hsv[1].coerceIn(0.38f, 0.82f)
+                        hsv[2] = hsv[2].coerceIn(0.62f, 0.88f)
+                        Color(android.graphics.Color.HSVToColor(hsv))
+                    } else Accent
+                } ?: Accent
+            }.getOrDefault(Accent)
+        }
+    }
     var isPlaying by remember { mutableStateOf(false) }
     var positionMs by remember { mutableStateOf(0L) }
     var tab by remember { mutableStateOf(if (startInAthenaeum) "Athenaeum" else "Listen") }
