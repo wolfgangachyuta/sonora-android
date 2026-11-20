@@ -130,6 +130,7 @@ private fun SonoraApp() {
     var playCounts by remember { mutableStateOf(preferences.getString("play_counts", "").orEmpty().split(",").filter { it.contains(":") }.associate { it.substringBefore(":") to (it.substringAfter(":").toIntOrNull() ?: 0) }) }
     var shuffle by remember { mutableStateOf(false) }
     var repeatMode by remember { mutableStateOf(Player.REPEAT_MODE_OFF) }
+    var playbackSpeed by remember { mutableFloatStateOf(1f) }
     var sleepTimerMinutes by remember { mutableStateOf<Int?>(null) }
     var playlists by remember { mutableStateOf(PlaylistStore(context).load()) }
     var lyricLines by remember { mutableStateOf(emptyList<LyricLine>()) }
@@ -362,7 +363,7 @@ private fun SonoraApp() {
                 BottomNav(tab, ink, muted) { tab = it }
             }
             if (tab == "Now Playing" && currentTrack != null) {
-                NowPlayingOverlay(currentTrack!!, isPlaying, positionMs, player.duration.takeIf { it > 0 } ?: currentTrack!!.durationMs, ink, paper, panel, muted, darkMode, { if (player.isPlaying) player.pause() else player.play() }, { player.seekToPreviousMediaItem() }, { player.seekToNextMediaItem() }, { player.seekTo(it) }, { tab = "Listen" }, shuffle, { shuffle = it; player.shuffleModeEnabled = it }, repeatMode, { repeatMode = it; player.repeatMode = it }, currentTrack!!.id.toString() in favorites, { toggleFavorite(currentTrack!!) }, { tab = "Lyrics" }, { editingTrack = currentTrack }, { tab = "Equalizer" }, sleepTimerMinutes, { sleepTimerMinutes = it })
+                NowPlayingOverlay(currentTrack!!, isPlaying, positionMs, player.duration.takeIf { it > 0 } ?: currentTrack!!.durationMs, ink, paper, panel, muted, darkMode, { if (player.isPlaying) player.pause() else player.play() }, { player.seekToPreviousMediaItem() }, { player.seekToNextMediaItem() }, { player.seekTo(it) }, { tab = "Listen" }, shuffle, { shuffle = it; player.shuffleModeEnabled = it }, repeatMode, { repeatMode = it; player.repeatMode = it }, currentTrack!!.id.toString() in favorites, { toggleFavorite(currentTrack!!) }, { tab = "Lyrics" }, { editingTrack = currentTrack }, { tab = "Equalizer" }, sleepTimerMinutes, { sleepTimerMinutes = it }, playbackSpeed, { speed -> playbackSpeed = speed; player.setPlaybackParameters(androidx.media3.common.PlaybackParameters(speed, 1f)) })
             }
             editingTrack?.let { track ->
                 TrackMetadataEditor(track, onDismiss = { editingTrack = null }, onSave = { metadata ->
