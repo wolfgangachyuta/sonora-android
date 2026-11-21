@@ -4,13 +4,13 @@
 
 Workflow: .github/workflows/android.yml
 
-The workflow runs on pushes to main, pull requests targeting main, and manual workflow_dispatch. Each run executes unit tests, assembles the debug APK and uploads the APK artifact.
+The workflow runs on pushes to main, pull requests targeting main, and manual workflow_dispatch. Each run executes unit tests, assembles debug and release APK variants, and uploads both artifacts. The release APK is unsigned unless the release-signing environment variables are supplied.
 
 1. Push a change to main or open a pull request targeting main; CI starts automatically.
 2. For a manual run, open Actions, choose Android CI and APK, then select Run workflow.
 3. Wait for unit tests and assembleDebug to complete. Only a green Success run is a successful build.
 4. Open the run's Artifacts section and download SONORA-debug.
-5. Extract the archive and install app-debug.apk.
+5. Extract the archive and install app-debug.apk. The SONORA-release-unsigned artifact is for packaging verification only unless it was signed with the private release key.
 
 ## Local build
 
