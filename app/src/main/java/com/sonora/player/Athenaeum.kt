@@ -372,7 +372,7 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
     }
 
     val matchingBooks = books.filter { book ->
-        val matchesSearch = search.isBlank() || listOf(book.title, book.author, book.isbn, book.publisher, book.genre, book.language, book.description, book.notes, book.publicationYear).any { it.contains(search, true) }
+        val matchesSearch = search.isBlank() || listOf(book.title, book.author, book.isbn, book.publisher, book.genre, book.language, book.description, book.notes, book.publicationYear, book.ocrText).any { it.contains(search, true) }
         val matchesFilter = when (filter) {
             "Currently reading" -> book.status == "Currently Reading"
             "Want to read" -> book.status == "Want to Read"
@@ -1170,6 +1170,13 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                 webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView?, url: String?) {
                         view?.scrollTo(0, if (ext == "epub") 0 else book.lastLocation.coerceAtLeast(0))
+                        view?.let { target ->
+                            scope.launch {
+                                dao.annotationsForBook(book.id)
+                                    .filter { ext != "epub" || it.location == epubChapterIndex }
+                                    .forEach { item -> highlightReaderQuote(target, item.quote, item.color) }
+                            }
+                        }
                     }
                 }
                 setBackgroundColor(if (dark) android.graphics.Color.rgb(23, 25, 22) else android.graphics.Color.rgb(247, 246, 241))
@@ -1213,12 +1220,13 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
     if (showOcr) {
         AlertDialog(
             onDismissRequest = { showOcr = false },
-            title = { Text("Recognised text · page ${page + 1}") },
+            title = { Text("Recognised text · ${book.title}") },
             text = {
                 Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                    if (batchOcrRunning) Text("Processing the complete PDF… $batchOcrProgress%", color = readerForeground, fontSize = 12.sp)
                     if (ocrError.isNotBlank()) Text(ocrError, color = Color(0xFF9B4B45))
                     else androidx.compose.foundation.text.selection.SelectionContainer {
-                        Text(ocrText.ifBlank { "No readable text was found on this page." }, color = readerForeground, fontSize = 13.sp, lineHeight = 19.sp)
+                        Text(ocrText.ifBlank { if (batchOcrRunning) "Text will appear here when extraction finishes." else "No readable text was found on this page." }, color = readerForeground, fontSize = 13.sp, lineHeight = 19.sp)
                     }
                 }
             },
