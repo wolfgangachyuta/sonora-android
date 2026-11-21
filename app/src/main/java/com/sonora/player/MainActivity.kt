@@ -672,7 +672,7 @@ private fun FeatureCard(current: AudioTrack?, playing: Boolean, ink: Color, pane
 private fun LibraryPage(tracks: List<AudioTrack>, loading: Boolean, permission: Boolean, query: String, onQuery: (String) -> Unit, onFilter: (String) -> Unit, filter: String, onScan: () -> Unit, onPlay: (AudioTrack) -> Unit, current: AudioTrack?, favorites: Set<String>, onFavorite: (AudioTrack) -> Unit, ink: Color, paper: Color, panel: Color, muted: Color) {
     var sortBy by remember { mutableStateOf("Recently added") }
     var showSort by remember { mutableStateOf(false) }
-    val matching = tracks.filter { (filter != "Favourites" || it.id.toString() in favorites) && (query.isBlank() || listOf(it.title, it.artist, it.album, it.composer, it.genre, it.year.toString(), it.folderPath).any { value -> value.contains(query, true) }) }
+    val matching = tracks.filter { (filter != "Favourites" || it.id.toString() in favorites) && (query.isBlank() || listOf(it.title, it.artist, it.album, it.composer, it.year.toString(), it.folderPath).any { value -> value.contains(query, true) }) }
     val filtered = when (sortBy) {
         "Title A–Z" -> matching.sortedBy { it.title.lowercase() }
         "Artist A–Z" -> matching.sortedBy { it.artist.lowercase() }
