@@ -27,7 +27,7 @@ The repository currently ships one Android package containing two connected expe
 - [x] Light/dark appearance and artwork-derived accent with fixed user-selectable palettes.
 - [x] Optional live FFT audio visualiser using Android Visualizer and a user-requested RECORD_AUDIO permission.
 - [ ] Device-specific visualiser compatibility and permission-flow verification.
-- [ ] More complete play-duration analytics and richer monthly reports.
+- [x] Measured listening-time analytics, monthly listening totals and six-month listening reports.
 - [x] Initial unit tests for Markdown, RTF and legacy MOBI utility paths.
 - [ ] Broader unit/instrumentation/UI tests and accessibility audit.
 
@@ -56,23 +56,25 @@ The repository currently ships one Android package containing two connected expe
 - [x] PDF page navigation, reader themes, text sizing, bookmarks and saved progress.
 - [x] Manual passage annotations and notes, Commonplace Book and reading-session statistics.
 - [x] On-device OCR for scanned PDF pages and Android text-to-speech.
-- [ ] AZW/AZW3/KF8, CBR and broader comic/archive format support.
+- [x] CBR (RAR-based) comic archives alongside CBZ.
+- [ ] AZW/AZW3/KF8 (including Huff/CDIC compression) and broader archive format support.
 - [ ] Full EPUB resource/DRM compatibility and a production-grade Readium-based rendering engine.
 - [x] Capture selected WebView passages and re-render saved highlights in EPUB/HTML reader content.
-- [ ] Annotation colour choices, PDF-page highlight overlays and exportable highlight collections.
+- [x] Annotation colour choices, saved PDF-page highlight cards and CSV export of highlight collections.
 - [x] On-demand online dictionary lookup for a selected single word.
-- [ ] Offline dictionary packs, robust pagination and typography controls across every format.
+- [x] Importable offline TSV/pipe/comma dictionary packs with local SQLite lookup.
+- [ ] Robust pagination and typography controls across every format.
 - [ ] Accessibility audit and screen-reader/large-font verification.
 
 ### Archive, portability and future services
 - [x] Room persistence and versioned migrations for books, shelves, bookmarks, annotations, commonplace entries and reading sessions.
 - [x] JSON archive export/restore and catalogue CSV export.
 - [x] Portable ZIP backup/restore packages accessible ebook and cover files with the catalogue/archive database; JSON-only backup remains metadata/URI based.
-- [ ] OCR batch workflow and searchable OCR text archive.
-- [ ] Optional cloud sync with conflict handling and explicit user-controlled provider setup.
+- [x] Full-document PDF OCR, persisted searchable OCR text and backup/restore of OCR content.
+- [x] Optional, manually configured HTTPS WebDAV backup sync with Android Keystore-encrypted credentials and ETag conflict checks.
 - [ ] More advanced search, quotation/tag indexing and reading timelines.
 - [ ] Additional configurable widgets (favourites, custom shelf and compact formats).
 
 ## Build and verification policy
 
-GitHub Actions remains manual-only (workflow_dispatch). Pushes and pull requests must not trigger builds. Do not run a build unless explicitly requested. Source changes in this roadmap are not a claim that a successful build or device test has occurred.
+GitHub Actions runs unit tests and assembles a debug APK on pushes to main and pull requests targeting main; workflow_dispatch remains available. A successful CI run verifies compilation, tests and APK packaging, not device-specific behaviour. Source changes in this roadmap are not a claim that a feature has passed physical-device testing.
