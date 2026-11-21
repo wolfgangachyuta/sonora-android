@@ -154,6 +154,7 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
                     } else Accent
                 } ?: Accent
             }.getOrDefault(Accent)
+            }
         }
     }
     var isPlaying by remember { mutableStateOf(false) }
