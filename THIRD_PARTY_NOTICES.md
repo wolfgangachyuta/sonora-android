@@ -13,6 +13,16 @@ A copy of the GPL-3.0 licence text is included at [LICENSES/GPL-3.0.txt](LICENSE
 
 **Distribution note:** GPL-3.0 obligations may apply when distributing SONORA together with this dependency. Review the licence and provide the corresponding source and required notices when conveying binaries. This notice is not legal advice.
 
+## Junrar 8.1.2
+
+Athenaeum uses Junrar to read RAR-based CBR comic archives:
+
+- Maven coordinates: `com.github.junrar:junrar:8.1.2`
+- Upstream source: https://github.com/junrar/junrar
+- Licence: UnRAR free portable version licence (not Apache-2.0); see [LICENSES/UNRAR.txt](LICENSES/UNRAR.txt).
+
+Junrar may be used to handle and extract RAR archives, but must not be used to recreate the proprietary RAR compression algorithm or develop a RAR/WinRAR-compatible archiver. Review the upstream licence before redistribution.
+
 ## YouTube and other media sources
 
 SONORA Fetch is a general yt-dlp client. Use it only for media you own or are authorised to download. Respect copyright, platform terms, and applicable law. SONORA does not attempt to bypass DRM or access controls.
@@ -22,5 +32,5 @@ SONORA Fetch is a general yt-dlp client. Use it only for media you own or are au
 Athenaeum uses the bundled Google ML Kit Text Recognition Android SDK:
 
 - Maven coordinates: `com.google.mlkit:text-recognition:16.0.1`
-- Purpose: on-device OCR for the currently displayed PDF page.
+- Purpose: on-device OCR for individual pages and full PDF documents.
 - Review the applicable Google ML Kit SDK terms and notices before distributing builds.
