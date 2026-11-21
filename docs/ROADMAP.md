@@ -34,8 +34,9 @@ The repository currently ships one Android package containing two connected expe
 ### Release readiness
 - [ ] Device matrix testing (Android 8 through current Android).
 - [ ] Small-screen, tablet and large-font verification.
-- [ ] Signed release configuration, versioning and distribution checklist.
-- [ ] Privacy policy and store listing before public distribution.
+- [x] Version 1.0.0 and environment-backed release signing configuration (a private signing key is still required for a signed release).
+- [x] Project privacy policy.
+- [ ] Store listing, policy hosting and final distribution checklist before public release.
 
 ## Athenaeum — personal library and reader
 
@@ -72,9 +73,10 @@ The repository currently ships one Android package containing two connected expe
 - [x] Portable ZIP backup/restore packages accessible ebook and cover files with the catalogue/archive database; JSON-only backup remains metadata/URI based.
 - [x] Full-document PDF OCR, persisted searchable OCR text and backup/restore of OCR content.
 - [x] Optional, manually configured HTTPS WebDAV backup sync with Android Keystore-encrypted credentials and ETag conflict checks.
-- [ ] More advanced search, quotation/tag indexing and reading timelines.
-- [ ] Additional configurable widgets (favourites, custom shelf and compact formats).
+- [x] Advanced catalogue/OCR search, quotation/tag search and chronological reading-session timeline.
+- [x] Favourites and custom-shelf home-screen widgets.
+- [ ] Compact/resizable widget layouts and per-widget shelf selection.
 
 ## Build and verification policy
 
-GitHub Actions runs unit tests and assembles a debug APK on pushes to main and pull requests targeting main; workflow_dispatch remains available. A successful CI run verifies compilation, tests and APK packaging, not device-specific behaviour. Source changes in this roadmap are not a claim that a feature has passed physical-device testing.
+GitHub Actions runs unit tests and assembles debug and release APK variants on pushes to main and pull requests targeting main; workflow_dispatch remains available. The release APK is unsigned unless the private signing environment variables are configured. A successful CI run verifies compilation, tests and APK packaging, not device-specific behaviour. Source changes in this roadmap are not a claim that a feature has passed physical-device testing.
