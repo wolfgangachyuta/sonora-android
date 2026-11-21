@@ -2,6 +2,8 @@ package com.sonora.player
 
 import android.content.Context
 import androidx.room.*
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Entity(tableName = "sonora_favorites")
 data class SonoraFavorite(@PrimaryKey val trackId: String, val addedAt: Long = System.currentTimeMillis())
@@ -18,7 +20,7 @@ data class SonoraPlaylist(@PrimaryKey val id: String, val name: String, val crea
 data class SonoraPlaylistTrack(val playlistId: String, val trackId: String, val position: Int)
 
 @Entity(tableName = "sonora_play_history", indices = [Index("trackId"), Index("playedAt")])
-data class SonoraPlayEvent(@PrimaryKey(autoGenerate = true) val id: Long = 0, val trackId: String, val playedAt: Long = System.currentTimeMillis())
+data class SonoraPlayEvent(@PrimaryKey(autoGenerate = true) val id: Long = 0, val trackId: String, val playedAt: Long = System.currentTimeMillis(), val durationMs: Long = 0L)
 
 @Entity(tableName = "sonora_queue_snapshot")
 data class SonoraQueueSnapshot(@PrimaryKey val id: Int = 1, val trackIds: String, val currentIndex: Int, val positionMs: Long, val updatedAt: Long = System.currentTimeMillis())
@@ -51,7 +53,9 @@ interface SonoraDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun savePlaylistTracks(items: List<SonoraPlaylistTrack>)
     @Insert
-    suspend fun recordPlay(event: SonoraPlayEvent)
+    suspend fun recordPlay(event: SonoraPlayEvent): Long
+    @Query("UPDATE sonora_play_history SET durationMs = durationMs + :duration WHERE id = :eventId")
+    suspend fun addListeningTime(eventId: Long, duration: Long)
     @Query("SELECT * FROM sonora_play_history ORDER BY playedAt DESC LIMIT 500")
     suspend fun recentHistory(): List<SonoraPlayEvent>
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -64,15 +68,20 @@ interface SonoraDao {
 
 @Database(
     entities = [SonoraFavorite::class, SonoraPlaylist::class, SonoraPlaylistTrack::class, SonoraPlayEvent::class, SonoraQueueSnapshot::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class SonoraDatabase : RoomDatabase() {
     abstract fun dao(): SonoraDao
     companion object {
         @Volatile private var instance: SonoraDatabase? = null
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE sonora_play_history ADD COLUMN durationMs INTEGER NOT NULL DEFAULT 0")
+            }
+        }
         fun get(context: Context): SonoraDatabase = instance ?: synchronized(this) {
-            instance ?: Room.databaseBuilder(context.applicationContext, SonoraDatabase::class.java, "sonora_library.db").build().also { instance = it }
+            instance ?: Room.databaseBuilder(context.applicationContext, SonoraDatabase::class.java, "sonora_library.db").addMigrations(MIGRATION_1_2).build().also { instance = it }
         }
     }
 }
