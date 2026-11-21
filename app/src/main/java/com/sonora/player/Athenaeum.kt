@@ -40,6 +40,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -266,6 +267,12 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
     var showSort by remember { mutableStateOf(false) }
     var showArchive by remember { mutableStateOf(false) }
     var showBackupMenu by remember { mutableStateOf(false) }
+    var showCloudSync by remember { mutableStateOf(false) }
+    var cloudEndpoint by remember { mutableStateOf(AthenaeumCloudSync.endpoint(context)) }
+    var cloudUsername by remember { mutableStateOf(AthenaeumCloudSync.username(context)) }
+    var cloudPassword by remember { mutableStateOf(AthenaeumCloudSync.password(context)) }
+    var cloudBusy by remember { mutableStateOf(false) }
+    var cloudMessage by remember { mutableStateOf("") }
 
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         if (uri != null) scope.launch {
@@ -400,6 +407,7 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
                     DropdownMenuItem(text = { Text("Export library JSON archive") }, onClick = { showBackupMenu = false; exportLauncher.launch("athenaeum-backup.json") })
                     DropdownMenuItem(text = { Text("Export catalogue CSV") }, onClick = { showBackupMenu = false; csvLauncher.launch("athenaeum-catalogue.csv") })
                     DropdownMenuItem(text = { Text("Restore / merge JSON archive") }, onClick = { showBackupMenu = false; restoreLauncher.launch(arrayOf("application/json", "text/json", "text/plain")) })
+                    DropdownMenuItem(text = { Text("Configure WebDAV cloud sync") }, onClick = { showBackupMenu = false; showCloudSync = true; cloudMessage = "" })
                 }
             }
             IconButton(onClick = onBack) { Icon(Icons.Rounded.Close, "Close Athenaeum", tint = Color(0xFF454640)) }
@@ -585,6 +593,52 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
         )
     }
     if (message.isNotBlank()) AlertDialog(onDismissRequest = { message = "" }, title = { Text("Import notice") }, text = { Text(message) }, confirmButton = { TextButton(onClick = { message = "" }) { Text("OK") } })
+    if (showCloudSync) {
+        AlertDialog(
+            onDismissRequest = { if (!cloudBusy) showCloudSync = false },
+            title = { Text("Private cloud backup", color = Color(0xFF252722)) },
+            text = {
+                Column(Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Text("Connect an HTTPS WebDAV file URL. Athenaeum uploads a portable ZIP; credentials are encrypted with Android Keystore. Uploads use ETag checks to avoid silently overwriting a backup changed on another device.", color = Color(0xFF66675F), fontSize = 11.sp)
+                    OutlinedTextField(cloudEndpoint, { cloudEndpoint = it }, label = { Text("HTTPS WebDAV file URL") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    OutlinedTextField(cloudUsername, { cloudUsername = it }, label = { Text("Username (optional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    OutlinedTextField(cloudPassword, { cloudPassword = it }, label = { Text("Password / app token") }, modifier = Modifier.fillMaxWidth(), singleLine = true, visualTransformation = PasswordVisualTransformation())
+                    if (cloudMessage.isNotBlank()) Text(cloudMessage, color = Color(0xFF4D694F), fontSize = 11.sp)
+                    if (cloudBusy) LinearProgressIndicator(Modifier.fillMaxWidth(), color = Color(0xFF66816B))
+                }
+            },
+            confirmButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    TextButton(enabled = !cloudBusy, onClick = {
+                        runCatching { AthenaeumCloudSync.save(context, cloudEndpoint, cloudUsername, cloudPassword) }
+                            .onSuccess { cloudMessage = "WebDAV settings saved securely on this device." }
+                            .onFailure { cloudMessage = it.message ?: "Could not save WebDAV settings." }
+                    }) { Text("SAVE") }
+                    TextButton(enabled = !cloudBusy && cloudEndpoint.isNotBlank(), onClick = {
+                        cloudBusy = true
+                        scope.launch {
+                            runCatching {
+                                AthenaeumCloudSync.save(context, cloudEndpoint, cloudUsername, cloudPassword)
+                                AthenaeumCloudSync.uploadBackup(context, dao, cloudEndpoint, cloudUsername, cloudPassword)
+                            }.onSuccess { cloudMessage = it }.onFailure { cloudMessage = it.message ?: "Upload failed." }
+                            cloudBusy = false
+                        }
+                    }) { Text("UPLOAD") }
+                    TextButton(enabled = !cloudBusy && cloudEndpoint.isNotBlank(), onClick = {
+                        cloudBusy = true
+                        scope.launch {
+                            runCatching {
+                                AthenaeumCloudSync.save(context, cloudEndpoint, cloudUsername, cloudPassword)
+                                AthenaeumCloudSync.downloadAndRestore(context, dao, cloudEndpoint, cloudUsername, cloudPassword)
+                            }.onSuccess { cloudMessage = it }.onFailure { cloudMessage = it.message ?: "Download failed." }
+                            cloudBusy = false
+                        }
+                    }) { Text("RESTORE") }
+                }
+            },
+            dismissButton = { TextButton(enabled = !cloudBusy, onClick = { showCloudSync = false }) { Text("CLOSE") } }
+        )
+    }
     if (showArchive) AthenaeumArchivePanel(dao, books, onClose = { showArchive = false })
     reading?.let { book ->
         Dialog(onDismissRequest = { reading = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
