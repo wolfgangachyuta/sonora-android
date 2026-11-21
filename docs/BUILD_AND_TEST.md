@@ -22,6 +22,19 @@ From the repository root run:
 
 Output: app/build/outputs/apk/debug/app-debug.apk.
 
+## Release signing
+
+The Gradle release build type is configured for version 1.0.0. To sign a release APK, provide these environment variables in a trusted build environment:
+
+- `SONORA_RELEASE_STORE_FILE`
+- `SONORA_RELEASE_STORE_PASSWORD`
+- `SONORA_RELEASE_KEY_ALIAS`
+- `SONORA_RELEASE_KEY_PASSWORD`
+
+Without all four values, the release variant is unsigned. Do not commit a keystore or passwords to the repository. A signed Play Store release still requires the owner's private signing key, Play Console configuration, final privacy-policy hosting and device acceptance testing.
+
+The project privacy policy is in `PRIVACY_POLICY.md`; host an accessible copy before public distribution.
+
 ## Device verification checklist
 
 - [ ] First launch, audio permission grant/denial, empty library and rescan.
