@@ -7,6 +7,7 @@ import android.content.ContentValues
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
+import android.util.Log
 import android.net.Uri
 import android.provider.MediaStore
 import android.content.ContentUris
@@ -320,6 +321,14 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
     DisposableEffect(player) {
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(playing: Boolean) { isPlaying = playing }
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                Log.e("SONORA_PLAYBACK", "Playback failed for ${currentTrack?.title ?: "unknown track"}: ${error.errorCodeName}", error)
+                android.widget.Toast.makeText(
+                    context,
+                    "Playback failed: ${error.errorCodeName}. ${error.localizedMessage ?: "See playback diagnostics."}",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 val id = mediaItem?.mediaId
                 currentTrack = tracks.firstOrNull { it.id.toString() == id }
