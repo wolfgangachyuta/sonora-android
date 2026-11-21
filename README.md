@@ -35,8 +35,8 @@ This is an active development build, not a release-verified product.
 
 - JSON-only Athenaeum archives preserve catalogue/archive records and URI references. Use the portable ZIP backup to package accessible ebook and cover files; files the app can no longer read are retained as URI references only.
 - EPUB support is an offline in-app parser/renderer, not a complete Readium implementation; DRM, some EPUB resources and advanced pagination are not supported.
-- MOBI support is limited to legacy PalmDOC-compressed MOBI 6; AZW3/KF8 and CBR are not currently supported.
-- Passage selection and persistent highlights are supported in WebView-based EPUB/HTML content. Dictionary definitions are an explicit online lookup; offline dictionary packs and PDF-page highlights are not yet implemented.
+- MOBI support is limited to legacy PalmDOC-compressed MOBI 6; AZW3/KF8 Huff/CDIC compression and DRM-protected publications are not supported.
+- EPUB/HTML passage highlights and PDF page highlights are saved locally and can be exported as CSV. Offline dictionary lookup requires importing a user-provided text pack.
 - Cloud sync, OCR batch indexing and broader automated UI/integration tests remain outstanding. The optional live visualizer still needs device-specific verification. Initial unit tests cover Markdown, RTF and legacy MOBI utility paths; they have not been run in this session.
 - Physical-device verification is still required for background playback, widgets, OCR, TTS, reader formats, accessibility and Android-version differences.
 - ISBN lookup uses Google Books when the user explicitly requests a lookup; core libraries and playback remain local-first.
@@ -45,12 +45,11 @@ This is an active development build, not a release-verified product.
 
 GitHub Actions is **manual-only** (workflow_dispatch). Pushes and pull requests do not start builds.
 
-1. Open the repository's Actions tab.
-2. Select **Android APK**.
-3. Press **Run workflow** for the main branch.
-4. Wait for a successful run.
-5. Download and extract the **SONORA-debug** artifact.
-6. Install app-debug.apk on an Android device.
+1. Push a commit to main or open a pull request targeting main; CI starts automatically.
+2. For a manual build, open Actions and select **Android CI and APK**, then choose Run workflow.
+3. Wait for unit tests and APK assembly to finish successfully.
+4. Download and extract the **SONORA-debug** artifact.
+5. Install app-debug.apk on an Android device.
 
 The debug APK is not a signed Play Store release. See docs/BUILD_AND_TEST.md.
 
