@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.content.ContentValues
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.net.Uri
 import android.provider.MediaStore
 import android.content.ContentUris
@@ -60,6 +61,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
@@ -168,6 +170,8 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
     var recentIds by remember { mutableStateOf(preferences.getString("recent_ids", "").orEmpty().split(",").filter { it.isNotBlank() }) }
     var playCounts by remember { mutableStateOf(preferences.getString("play_counts", "").orEmpty().split(",").filter { it.contains(":") }.associate { it.substringBefore(":") to (it.substringAfter(":").toIntOrNull() ?: 0) }) }
     var playEvents by remember { mutableStateOf(emptyList<SonoraPlayEvent>()) }
+    var activePlayEventId by remember { mutableLongStateOf(0L) }
+    var activePlayEventTrackId by remember { mutableStateOf("") }
     var shuffle by remember { mutableStateOf(preferences.getBoolean("shuffle", false)) }
     var repeatMode by remember { mutableStateOf(preferences.getInt("repeat_mode", Player.REPEAT_MODE_OFF)) }
     var playbackSpeed by remember { mutableFloatStateOf(preferences.getFloat("playback_speed", 1f).coerceIn(0.5f, 2f)) }
@@ -329,7 +333,9 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
                         if (ids.isNotEmpty()) sonoraDao.saveQueue(SonoraQueueSnapshot(trackIds = ids.joinToString(","), currentIndex = player.currentMediaItemIndex, positionMs = player.currentPosition.coerceAtLeast(0L)))
                     }
                     libraryScope.launch {
-                        sonoraDao.recordPlay(SonoraPlayEvent(trackId = t.id.toString()))
+                        val eventId = sonoraDao.recordPlay(SonoraPlayEvent(trackId = t.id.toString()))
+                        activePlayEventId = eventId
+                        activePlayEventTrackId = t.id.toString()
                         playEvents = sonoraDao.recentHistory()
                     }
                 }
@@ -368,6 +374,29 @@ private fun SonoraApp(startInAthenaeum: Boolean = false) {
         while (currentTrack != null) {
             positionMs = player.currentPosition.coerceAtLeast(0L)
             delay(400)
+        }
+    }
+
+    LaunchedEffect(currentTrack, isPlaying, activePlayEventId, activePlayEventTrackId) {
+        val trackId = currentTrack?.id?.toString()
+        val eventId = activePlayEventId
+        if (!isPlaying || trackId.isNullOrBlank() || eventId <= 0L || activePlayEventTrackId != trackId) return@LaunchedEffect
+        var lastTick = SystemClock.elapsedRealtime()
+        try {
+            while (true) {
+                delay(5_000)
+                val now = SystemClock.elapsedRealtime()
+                sonoraDao.addListeningTime(eventId, (now - lastTick).coerceAtLeast(0L))
+                lastTick = now
+                playEvents = sonoraDao.recentHistory()
+            }
+        } finally {
+            val finalTick = SystemClock.elapsedRealtime()
+            val remaining = (finalTick - lastTick).coerceAtLeast(0L)
+            if (remaining > 0L) withContext(NonCancellable) {
+                runCatching { sonoraDao.addListeningTime(eventId, remaining) }
+                playEvents = sonoraDao.recentHistory()
+            }
         }
     }
     LaunchedEffect(loading, hasPermission) {
@@ -875,6 +904,7 @@ private fun PlaylistsPage(
 @Composable
 private fun StatsPage(tracks: List<AudioTrack>, counts: Map<String, Int>, recentIds: List<String>, events: List<SonoraPlayEvent>, ink: Color, panel: Color, muted: Color) {
     val totalPlays = counts.values.sum()
+    val totalListenMs = events.sumOf { it.durationMs }
     val now = System.currentTimeMillis()
     val monthStart = java.util.Calendar.getInstance().apply {
         set(java.util.Calendar.DAY_OF_MONTH, 1)
@@ -883,8 +913,20 @@ private fun StatsPage(tracks: List<AudioTrack>, counts: Map<String, Int>, recent
         set(java.util.Calendar.SECOND, 0)
         set(java.util.Calendar.MILLISECOND, 0)
     }.timeInMillis
-    val thisMonth = events.count { it.playedAt >= monthStart }
-    val last30Days = events.count { it.playedAt >= now - 30L * 24 * 60 * 60 * 1000 }
+    val thisMonthEvents = events.filter { it.playedAt >= monthStart }
+    val thisMonth = thisMonthEvents.size
+    val thisMonthListenMs = thisMonthEvents.sumOf { it.durationMs }
+    val last30DayEvents = events.filter { it.playedAt >= now - 30L * 24 * 60 * 60 * 1000 }
+    val last30Days = last30DayEvents.size
+    val last30ListenMs = last30DayEvents.sumOf { it.durationMs }
+    val topByTime = events.groupBy { it.trackId }.mapValues { (_, rows) -> rows.sumOf { it.durationMs } }
+    val monthlyListening = (0..5).map { offset ->
+        val start = java.util.Calendar.getInstance().apply { set(java.util.Calendar.DAY_OF_MONTH, 1); set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0); set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0); add(java.util.Calendar.MONTH, -offset) }
+        val startMs = start.timeInMillis
+        val endMs = start.clone().let { it as java.util.Calendar }.apply { add(java.util.Calendar.MONTH, 1) }.timeInMillis
+        val monthEvents = events.filter { it.playedAt in startMs until endMs }
+        java.text.SimpleDateFormat("MMM yyyy", java.util.Locale.getDefault()).format(start.time) to monthEvents.sumOf { it.durationMs }
+    }.reversed()
     val mostPlayed = tracks.sortedByDescending { counts[it.id.toString()] ?: 0 }.take(5).filter { (counts[it.id.toString()] ?: 0) > 0 }
     val topArtists = tracks.groupBy { it.artist }.map { it.key to it.value.sumOf { t -> counts[t.id.toString()] ?: 0 } }.sortedByDescending { it.second }.take(5)
     val recent = recentIds.mapNotNull { id -> tracks.firstOrNull { it.id.toString() == id } }.distinctBy { it.id }.take(6)
@@ -892,6 +934,25 @@ private fun StatsPage(tracks: List<AudioTrack>, counts: Map<String, Int>, recent
         item { PageHeader("Listening statistics", "${totalPlays} plays across ${tracks.size} tracks", ink, muted) }
         item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { DashboardTile("TRACKS", tracks.size.toString(), Modifier.weight(1f), ink, panel, muted); DashboardTile("PLAY COUNTS", totalPlays.toString(), Modifier.weight(1f), ink, panel, muted); DashboardTile("ARTISTS", tracks.map { it.artist }.distinct().size.toString(), Modifier.weight(1f), ink, panel, muted) } }
         item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { DashboardTile("THIS MONTH", thisMonth.toString(), Modifier.weight(1f), ink, panel, muted); DashboardTile("LAST 30 DAYS", last30Days.toString(), Modifier.weight(1f), ink, panel, muted) } }
+        item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { DashboardTile("TOTAL LISTENED", formatDuration(totalListenMs), Modifier.weight(1f), ink, panel, muted); DashboardTile("THIS MONTH", formatDuration(thisMonthListenMs), Modifier.weight(1f), ink, panel, muted); DashboardTile("LAST 30 DAYS", formatDuration(last30ListenMs), Modifier.weight(1f), ink, panel, muted) } }
+        item { Text("MONTHLY LISTENING", fontSize = 9.sp, color = muted, letterSpacing = 1.5.sp) }
+        items(monthlyListening, key = { it.first }) { month ->
+            val maximum = monthlyListening.maxOfOrNull { it.second }?.coerceAtLeast(1L) ?: 1L
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(panel).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(month.first, Modifier.weight(1f), color = ink, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    Text(formatDuration(month.second), color = muted, fontSize = 11.sp)
+                }
+                LinearProgressIndicator(progress = { (month.second.toFloat() / maximum).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth().height(4.dp), color = AccentDeep, trackColor = muted.copy(alpha = .18f))
+            }
+        }
+        item { Text("MOST LISTENED BY TIME", fontSize = 9.sp, color = muted, letterSpacing = 1.5.sp) }
+        items(tracks.sortedByDescending { topByTime[it.id.toString()] ?: 0L }.take(5).filter { (topByTime[it.id.toString()] ?: 0L) > 0L }, key = { it.id }) { track ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) { TrackRow(track, false, {}, ink, muted) }
+                Text(formatDuration(topByTime[track.id.toString()] ?: 0L), color = muted, fontSize = 10.sp)
+            }
+        }
         item { Text("IN HEAVY ROTATION", fontSize = 9.sp, color = muted, letterSpacing = 1.5.sp) }
         if (mostPlayed.isEmpty()) item { Text("Play some music. Your favourites in rotation will appear here.", color = muted, fontSize = 12.sp) }
         items(mostPlayed, key = { it.id }) { TrackRow(it, false, {}, ink, muted, counts[it.id.toString()] ?: 0) }
