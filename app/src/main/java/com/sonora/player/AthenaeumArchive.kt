@@ -81,6 +81,7 @@ fun AthenaeumArchivePanel(dao: AthenaeumDao, books: List<AthenaeumBook>, onClose
     var tags by remember { mutableStateOf("") }
     var source by remember { mutableStateOf("") }
     var selectedBookId by remember { mutableStateOf<Long?>(null) }
+    var archiveSearch by remember { mutableStateOf("") }
 
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(Modifier.fillMaxSize().background(Color(0xFFF6F5F1)).padding(horizontal = 18.dp, vertical = 12.dp)) {
@@ -96,6 +97,14 @@ fun AthenaeumArchivePanel(dao: AthenaeumDao, books: List<AthenaeumBook>, onClose
                     FilterChip(selected = section == item, onClick = { section = item }, label = { Text(item, fontSize = 11.sp) })
                 }
             }
+            OutlinedTextField(
+                value = archiveSearch,
+                onValueChange = { archiveSearch = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("Search quotations, reflections, tags and highlights") },
+                leadingIcon = { Icon(Icons.Rounded.Search, null) }
+            )
             when (section) {
                 "Commonplace" -> {
                     OutlinedTextField(value = quote, onValueChange = { quote = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Quotation or passage") }, minLines = 2)
@@ -122,7 +131,9 @@ fun AthenaeumArchivePanel(dao: AthenaeumDao, books: List<AthenaeumBook>, onClose
                     }
                     HorizontalDivider(Modifier.padding(vertical = 12.dp), color = Color(0xFFE4E3DD))
                     LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                        items(entries, key = { it.id }) { entry ->
+                        items(entries.filter { entry ->
+                            archiveSearch.isBlank() || listOf(entry.quote, entry.reflection, entry.source, entry.tags, books.firstOrNull { book -> book.id == entry.bookId }?.title.orEmpty()).any { it.contains(archiveSearch, true) }
+                        }, key = { it.id }) { entry ->
                             Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.White).padding(13.dp)) {
                                 Text("“${entry.quote}”", color = Color(0xFF252722), fontSize = 14.sp, fontWeight = FontWeight.Medium)
                                 if (entry.reflection.isNotBlank()) Text(entry.reflection, color = Color(0xFF66675F), fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp))
@@ -135,7 +146,9 @@ fun AthenaeumArchivePanel(dao: AthenaeumDao, books: List<AthenaeumBook>, onClose
                     }
                 }
                 "Highlights" -> LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(annotations, key = { it.id }) { annotation ->
+                    items(annotations.filter { annotation ->
+                        archiveSearch.isBlank() || listOf(annotation.quote, annotation.note, books.firstOrNull { book -> book.id == annotation.bookId }?.title.orEmpty()).any { it.contains(archiveSearch, true) }
+                    }, key = { it.id }) { annotation ->
                         val book = books.firstOrNull { it.id == annotation.bookId }
                         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.White).padding(13.dp)) {
                             Text(book?.title ?: "Removed book", color = Color(0xFF77766F), fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
@@ -162,6 +175,18 @@ fun AthenaeumArchivePanel(dao: AthenaeumDao, books: List<AthenaeumBook>, onClose
                         }
                         ArchiveMetric("Annotations", annotations.size.toString(), Modifier.fillMaxWidth())
                         ArchiveMetric("Commonplace entries", entries.size.toString(), Modifier.fillMaxWidth())
+                        Text("READING TIMELINE", color = Color(0xFF77766F), fontSize = 9.sp, letterSpacing = 1.3.sp, fontWeight = FontWeight.SemiBold)
+                        sessions.sortedByDescending { it.startedAt }.take(10).forEach { session ->
+                            val title = books.firstOrNull { it.id == session.bookId }?.title ?: "Removed book"
+                            val date = java.text.SimpleDateFormat("d MMM yyyy · HH:mm", java.util.Locale.getDefault()).format(java.util.Date(session.startedAt))
+                            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Color.White).padding(11.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(title, color = Color(0xFF252722), fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(date, color = Color(0xFF77766F), fontSize = 10.sp)
+                                }
+                                Text("${session.durationMinutes} min · ${session.pagesRead} pages", color = Color(0xFF77766F), fontSize = 10.sp)
+                            }
+                        }
                         Text("Reading sessions are recorded locally as you use the reader. Your library and archive remain on this device.", color = Color(0xFF77766F), fontSize = 11.sp)
                     }
                 }
