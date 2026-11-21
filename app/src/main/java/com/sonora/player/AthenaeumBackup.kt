@@ -147,7 +147,7 @@ object AthenaeumBackup {
                 .put("id", b.id).put("title", b.title).put("author", b.author)
                 .put("publisher", b.publisher).put("publicationYear", b.publicationYear)
                 .put("isbn", b.isbn).put("genre", b.genre).put("language", b.language)
-                .put("description", b.description).put("coverUri", b.coverUri)
+                .put("description", b.description).put("coverUri", b.coverUri).put("ocrText", b.ocrText)
                 .put("rating", b.rating.toDouble()).put("status", b.status)
                 .put("ownership", b.ownership).put("fileUri", b.fileUri).put("fileType", b.fileType)
                 .put("addedAt", b.addedAt).put("lastOpenedAt", b.lastOpenedAt)
@@ -194,7 +194,7 @@ object AthenaeumBackup {
                 fileType = o.optString("fileType"), addedAt = o.optLong("addedAt"),
                 lastOpenedAt = o.optLong("lastOpenedAt"), progress = o.optInt("progress"),
                 lastLocation = o.optInt("lastLocation"), notes = o.optString("notes"),
-                favorite = o.optBoolean("favorite")
+                favorite = o.optBoolean("favorite"), ocrText = o.optString("ocrText")
             )
         }
         val shelves = (0 until array("shelves").length()).map { i ->
