@@ -3,6 +3,7 @@ package com.sonora.player
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.Player
+import android.util.Log
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
@@ -37,6 +38,10 @@ class SonoraPlaybackService : MediaSessionService() {
         exo.addListener(object : Player.Listener {
             override fun onAudioSessionIdChanged(audioSessionId: Int) {
                 Companion.audioSessionId = audioSessionId
+            }
+
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                Log.e("SONORA_PLAYBACK", "Media3 service playback error: ${error.errorCodeName}", error)
             }
         })
         mediaSession = MediaSession.Builder(this, exo).build()
