@@ -827,6 +827,24 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
     var showAnnotationEditor by remember { mutableStateOf(false) }
     var annotationQuote by remember { mutableStateOf("") }
     var annotationNote by remember { mutableStateOf("") }
+    var annotationColor by remember { mutableStateOf("amber") }
+    var dictionaryDefinition by remember { mutableStateOf("") }
+    var dictionaryLoading by remember { mutableStateOf(false) }
+    var dictionaryMessage by remember { mutableStateOf("") }
+    val lookupScope = rememberCoroutineScope()
+    var savedAnnotations by remember(book.id) { mutableStateOf(emptyList<AthenaeumAnnotation>()) }
+    val dictionaryImportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) lookupScope.launch {
+            dictionaryMessage = "Importing dictionary pack…"
+            val count = withContext(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver.openInputStream(uri)?.use { OfflineDictionary.importPack(context, it) }
+                        ?: error("Could not open dictionary pack")
+                }
+            }
+            dictionaryMessage = count.fold({ "Imported $it dictionary entries." }, { "Dictionary import failed: ${it.message}" })
+        }
+    }
     var epubDocument by remember(book.id) { mutableStateOf<EpubDocument?>(null) }
     var comicPages by remember(book.id) { mutableStateOf(emptyList<Bitmap>()) }
     var comicPage by remember(book.id) { mutableIntStateOf(book.lastLocation.coerceAtLeast(0)) }
@@ -844,6 +862,9 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
 
     LaunchedEffect(book.id, showBookmarks) {
         if (showBookmarks) savedBookmarks = dao.bookmarks(book.id)
+    }
+    LaunchedEffect(book.id) {
+        savedAnnotations = dao.annotationsForBook(book.id)
     }
 
     DisposableEffect(book.id) {
@@ -950,11 +971,13 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
             IconButton(onClick = {
                 val web = readerWebView
                 if (web == null) {
-                    annotationQuote = ""; annotationNote = ""; showAnnotationEditor = true
+                    annotationQuote = ""; annotationNote = ""; annotationColor = "amber"; dictionaryDefinition = ""; showAnnotationEditor = true
                 } else {
                     web.evaluateJavascript("(function(){return window.getSelection().toString();})()") { raw ->
                         annotationQuote = runCatching { JSONTokener(raw).nextValue() as? String }.getOrNull().orEmpty()
                         annotationNote = ""
+                        annotationColor = "amber"
+                        dictionaryDefinition = ""
                         showAnnotationEditor = true
                     }
                 }
@@ -1110,22 +1133,38 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                     OutlinedTextField(annotationQuote, { annotationQuote = it; dictionaryDefinition = "" }, label = { Text("Passage / quotation") }, minLines = 2)
                     val selectedWord = annotationQuote.trim()
                     if (selectedWord.isNotBlank() && selectedWord.none { it.isWhitespace() } && selectedWord.all { it.isLetter() }) {
-                        TextButton(enabled = !dictionaryLoading, onClick = {
-                            lookupScope.launch {
-                                dictionaryLoading = true
-                                dictionaryDefinition = withContext(Dispatchers.IO) { runCatching { DictionaryLookup.define(selectedWord) }.getOrNull() } ?: "No definition found."
-                                dictionaryLoading = false
-                            }
-                        }) { Text(if (dictionaryLoading) "LOOKING UP…" else "DEFINE SELECTED WORD") }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(enabled = !dictionaryLoading, onClick = {
+                                lookupScope.launch {
+                                    dictionaryLoading = true
+                                    dictionaryDefinition = withContext(Dispatchers.IO) {
+                                        OfflineDictionary.lookup(context, selectedWord)
+                                            ?: runCatching { DictionaryLookup.define(selectedWord) }.getOrNull()
+                                    } ?: "No definition found. Import an offline dictionary pack to look up words without internet."
+                                    dictionaryLoading = false
+                                }
+                            }) { Text(if (dictionaryLoading) "LOOKING UP…" else "DEFINE WORD") }
+                            TextButton(onClick = { dictionaryImportLauncher.launch(arrayOf("text/*", "application/octet-stream")) }) { Text("IMPORT DICTIONARY") }
+                        }
+                    } else {
+                        TextButton(onClick = { dictionaryImportLauncher.launch(arrayOf("text/*", "application/octet-stream")) }) { Text("IMPORT OFFLINE DICTIONARY") }
                     }
+                    if (dictionaryMessage.isNotBlank()) Text(dictionaryMessage, color = readerForeground, fontSize = 11.sp)
                     if (dictionaryDefinition.isNotBlank()) Text(dictionaryDefinition, color = readerForeground, fontSize = 12.sp, lineHeight = 17.sp)
+                    Text("Highlight colour", color = readerForeground, fontSize = 11.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf("amber", "green", "blue", "rose").forEach { tone ->
+                            FilterChip(selected = annotationColor == tone, onClick = { annotationColor = tone }, label = { Text(tone.replaceFirstChar { it.uppercase() }) })
+                        }
+                    }
                     OutlinedTextField(annotationNote, { annotationNote = it }, label = { Text("Your note (optional)") }, minLines = 2)
                 }
             },
             confirmButton = { TextButton(onClick = {
                 if (annotationQuote.isNotBlank()) scope.launch {
-                    dao.addAnnotation(AthenaeumAnnotation(bookId = book.id, location = if (ext == "pdf") page else if (ext == "txt") textScroll.value else if (ext == "epub") epubChapterIndex else readerWebView?.scrollY ?: 0, quote = annotationQuote.trim(), note = annotationNote.trim()))
-                    if (ext != "pdf" && ext != "txt") readerWebView?.let { highlightReaderQuote(it, annotationQuote.trim()) }
+                    dao.addAnnotation(AthenaeumAnnotation(bookId = book.id, location = if (ext == "pdf") page else if (ext == "txt") textScroll.value else if (ext == "epub") epubChapterIndex else readerWebView?.scrollY ?: 0, quote = annotationQuote.trim(), note = annotationNote.trim(), color = annotationColor))
+                    savedAnnotations = dao.annotationsForBook(book.id)
+                    if (ext != "pdf" && ext != "txt") readerWebView?.let { highlightReaderQuote(it, annotationQuote.trim(), annotationColor) }
                 }
                 showAnnotationEditor = false
             }) { Text("SAVE") } },
@@ -1161,9 +1200,11 @@ private fun sanitizeReaderHtml(html: String): String = html
     .replace(Regex("""(?i)(href|src)\s*=\s*(['"])\s*javascript:.*?\2"""), "")
     .replace(Regex("""(?i)(href|src)\s*=\s*javascript:[^\s>]+"""), "")
 
-private fun highlightReaderQuote(webView: WebView, quote: String) {
+private fun highlightReaderQuote(webView: WebView, quote: String, color: String = "amber") {
     if (quote.isBlank()) return
     val safeQuote = JSONObject.quote(quote)
-    val script = """(function(q){var w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);while(w.nextNode()){var n=w.currentNode;var i=n.nodeValue.indexOf(q);if(i>=0){var r=document.createRange();r.setStart(n,i);r.setEnd(n,i+q.length);var m=document.createElement('mark');m.style.backgroundColor='#F2D98A';m.style.color='inherit';try{r.surroundContents(m);return true;}catch(e){return false;}}}return false;})($safeQuote);"""
+    val cssColor = when (color) { "green" -> "#B9D8B8"; "blue" -> "#B8D4EF"; "rose" -> "#EEC2C8"; else -> "#F2D98A" }
+    val safeColor = JSONObject.quote(cssColor)
+    val script = """(function(q,c){var w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);while(w.nextNode()){var n=w.currentNode;var i=n.nodeValue.indexOf(q);if(i>=0){var r=document.createRange();r.setStart(n,i);r.setEnd(n,i+q.length);var m=document.createElement('mark');m.style.backgroundColor=c;m.style.color='inherit';try{r.surroundContents(m);return true;}catch(e){return false;}}}return false;})($safeQuote,$safeColor);"""
     webView.evaluateJavascript(script, null)
 }
