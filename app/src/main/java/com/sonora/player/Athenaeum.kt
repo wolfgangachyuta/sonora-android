@@ -90,7 +90,8 @@ data class AthenaeumBook(
     val progress: Int = 0,
     val lastLocation: Int = 0,
     val notes: String = "",
-    val favorite: Boolean = false
+    val favorite: Boolean = false,
+    val ocrText: String = ""
 )
 
 @Entity(tableName = "athenaeum_shelves")
@@ -149,6 +150,8 @@ interface AthenaeumDao {
     suspend fun setFavorite(id: Long, favorite: Boolean)
     @Query("UPDATE athenaeum_books SET coverUri=:coverUri WHERE id=:id")
     suspend fun updateCover(id: Long, coverUri: String)
+    @Query("UPDATE athenaeum_books SET ocrText=:text WHERE id=:id")
+    suspend fun updateOcrText(id: Long, text: String)
     @Insert
     suspend fun addBookmark(bookmark: AthenaeumBookmark)
     @Query("SELECT * FROM athenaeum_bookmarks WHERE bookId=:bookId ORDER BY createdAt DESC")
@@ -207,7 +210,7 @@ interface AthenaeumDao {
     suspend fun restoreReadingSessions(items: List<AthenaeumReadingSession>)
 }
 
-@Database(entities = [AthenaeumBook::class, AthenaeumShelf::class, AthenaeumBookShelf::class, AthenaeumBookmark::class, AthenaeumAnnotation::class, AthenaeumCommonplaceEntry::class, AthenaeumReadingSession::class], version = 3, exportSchema = false)
+@Database(entities = [AthenaeumBook::class, AthenaeumShelf::class, AthenaeumBookShelf::class, AthenaeumBookmark::class, AthenaeumAnnotation::class, AthenaeumCommonplaceEntry::class, AthenaeumReadingSession::class], version = 4, exportSchema = false)
 abstract class AthenaeumDatabase : RoomDatabase() {
     abstract fun dao(): AthenaeumDao
     companion object {
@@ -228,9 +231,14 @@ abstract class AthenaeumDatabase : RoomDatabase() {
                 database.execSQL("CREATE INDEX IF NOT EXISTS index_athenaeum_reading_sessions_bookId ON athenaeum_reading_sessions(bookId)")
             }
         }
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE athenaeum_books ADD COLUMN ocrText TEXT NOT NULL DEFAULT ''")
+            }
+        }
         fun get(context: Context): AthenaeumDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, AthenaeumDatabase::class.java, "athenaeum.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { instance = it }
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { instance = it }
         }
     }
 }
@@ -527,7 +535,7 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
                 "Publication year" -> shelfBooks.sortedByDescending { it.publicationYear.toIntOrNull() ?: 0 }
                 "Recently read" -> shelfBooks.sortedByDescending { it.lastOpenedAt }
                 else -> shelfBooks.sortedByDescending { it.addedAt }
-            }.filter { search.isBlank() || listOf(it.title, it.author, it.isbn, it.publisher, it.genre, it.language, it.description, it.notes, it.publicationYear).any { value -> value.contains(search, true) } }
+            }.filter { search.isBlank() || listOf(it.title, it.author, it.isbn, it.publisher, it.genre, it.language, it.description, it.notes, it.publicationYear, it.ocrText).any { value -> value.contains(search, true) } }
         } else visibleBooks
 
         if (displayBooks.isEmpty()) {
@@ -850,7 +858,9 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
     var comicPage by remember(book.id) { mutableIntStateOf(book.lastLocation.coerceAtLeast(0)) }
     var epubChapterIndex by remember(book.id) { mutableIntStateOf(book.lastLocation.coerceAtLeast(0)) }
     var showToc by remember { mutableStateOf(false) }
-    var ocrText by remember { mutableStateOf("") }
+    var ocrText by remember(book.id) { mutableStateOf(book.ocrText) }
+    var batchOcrRunning by remember { mutableStateOf(false) }
+    var batchOcrProgress by remember { mutableIntStateOf(0) }
     var ocrError by remember { mutableStateOf("") }
     var showOcr by remember { mutableStateOf(false) }
     var ttsReady by remember { mutableStateOf(false) }
@@ -967,6 +977,45 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                     .addOnSuccessListener { result -> ocrText = result.text; ocrError = ""; showOcr = true; recognizer.close() }
                     .addOnFailureListener { error -> ocrError = error.message ?: "OCR could not read this page."; showOcr = true; recognizer.close() }
             }) { Icon(Icons.Rounded.DocumentScanner, "Extract text from PDF page", tint = readerForeground) }
+            if (ext == "pdf") IconButton(enabled = !batchOcrRunning, onClick = {
+                scope.launch {
+                    batchOcrRunning = true
+                    batchOcrProgress = 0
+                    ocrError = ""
+                    val result = withContext(Dispatchers.IO) {
+                        runCatching {
+                            val descriptor = context.contentResolver.openFileDescriptor(Uri.parse(book.fileUri), "r") ?: error("Could not open PDF")
+                            val renderer = PdfRenderer(descriptor)
+                            val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+                            val output = StringBuilder()
+                            try {
+                                val count = renderer.pageCount.coerceAtMost(1_000)
+                                for (index in 0 until count) {
+                                    val pdfPage = renderer.openPage(index)
+                                    val scale = minOf(1.5f, 1800f / maxOf(pdfPage.width, pdfPage.height))
+                                    val image = Bitmap.createBitmap((pdfPage.width * scale).toInt().coerceAtLeast(1), (pdfPage.height * scale).toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+                                    pdfPage.render(image, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                                    val text = com.google.android.gms.tasks.Tasks.await(recognizer.process(InputImage.fromBitmap(image, 0)), 45, java.util.concurrent.TimeUnit.SECONDS).text
+                                    image.recycle()
+                                    output.append("\n\n--- Page ${index + 1} ---\n").append(text)
+                                    batchOcrProgress = ((index + 1) * 100 / count.coerceAtLeast(1))
+                                }
+                                output.toString().trim()
+                            } finally {
+                                recognizer.close()
+                                renderer.close()
+                                descriptor.close()
+                            }
+                        }
+                    }
+                    result.onSuccess { extracted ->
+                        ocrText = extracted
+                        dao.updateOcrText(book.id, extracted)
+                        showOcr = true
+                    }.onFailure { ocrError = it.message ?: "Could not OCR the complete PDF."; showOcr = true }
+                    batchOcrRunning = false
+                }
+            }) { Icon(Icons.Rounded.DocumentScanner, if (batchOcrRunning) "OCR progress ${batchOcrProgress} percent" else "OCR entire PDF", tint = readerForeground) }
             IconButton(onClick = { showBookmarks = true }) { Icon(Icons.Rounded.Bookmarks, "Bookmarks", tint = readerForeground) }
             IconButton(onClick = {
                 val web = readerWebView
@@ -1003,6 +1052,16 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
         if (ext == "pdf" && bitmap != null) {
             Box(Modifier.weight(1f).fillMaxWidth().padding(8.dp), contentAlignment = Alignment.Center) {
                 Image(bitmap!!.asImageBitmap(), contentDescription = "PDF page ${page + 1}", modifier = Modifier.fillMaxSize())
+                val pageAnnotations = savedAnnotations.filter { it.location == page && it.quote.isNotBlank() }
+                if (pageAnnotations.isNotEmpty()) {
+                    Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(10.dp).clip(RoundedCornerShape(12.dp)).background(readerBar.copy(alpha = .96f)).padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Text("PAGE HIGHLIGHTS", color = readerForeground, fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
+                        pageAnnotations.forEach { item ->
+                            val tint = when (item.color) { "green" -> Color(0xFFB9D8B8); "blue" -> Color(0xFFB8D4EF); "rose" -> Color(0xFFEEC2C8); else -> Color(0xFFF2D98A) }
+                            Text("“${item.quote}”" + if (item.note.isBlank()) "" else "\n${item.note}", color = readerForeground, fontSize = 11.sp, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(6.dp)).background(tint.copy(alpha = .32f)).padding(6.dp), maxLines = 3, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                }
             }
             Row(Modifier.fillMaxWidth().background(readerBar).padding(8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = { if (page > 0) page-- }, enabled = page > 0) { Text("PREVIOUS", color = readerForeground) }
@@ -1022,7 +1081,7 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                 }
                 dao.updateProgress(book.id, ((page + 1) * 100 / pageCount.coerceAtLeast(1)), page)
             }
-        } else if (ext == "cbz" && comicPages.isNotEmpty()) {
+        } else if ((ext == "cbz" || ext == "cbr") && comicPages.isNotEmpty()) {
             Box(Modifier.weight(1f).fillMaxWidth().padding(8.dp), contentAlignment = Alignment.Center) {
                 Image(comicPages[comicPage.coerceIn(0, comicPages.lastIndex)].asImageBitmap(), contentDescription = "Comic page ${comicPage + 1}", modifier = Modifier.fillMaxSize())
             }
