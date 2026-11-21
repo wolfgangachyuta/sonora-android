@@ -314,7 +314,7 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
                 }
             }.getOrNull() ?: "Untitled book"
             val ext = name.substringAfterLast('.', "").lowercase()
-            if (ext in setOf("epub", "pdf", "txt", "html", "htm", "fb2", "mobi", "rtf", "md", "markdown", "cbz")) {
+            if (ext in setOf("epub", "pdf", "txt", "html", "htm", "fb2", "mobi", "rtf", "md", "markdown", "cbz", "cbr")) {
                 scope.launch {
                     val epubDocument = if (ext == "epub") withContext(Dispatchers.IO) {
                         runCatching {
@@ -877,9 +877,9 @@ private fun AthenaeumReader(book: AthenaeumBook, dao: AthenaeumDao, onClose: () 
                     bitmap = image
                 }.onFailure { content = "Could not open this PDF: ${it.message}" }
             }
-        } else if (ext == "cbz") {
+        } else if (ext == "cbz" || ext == "cbr") {
             val pages = withContext(Dispatchers.IO) {
-                runCatching { ComicArchiveReader.read(context.contentResolver, Uri.parse(book.fileUri)) }
+                runCatching { ComicArchiveReader.read(context.contentResolver, Uri.parse(book.fileUri), rar = ext == "cbr") }
             }
             pages.onSuccess {
                 comicPages = it
