@@ -139,6 +139,17 @@ object AthenaeumBackup {
         return rows.joinToString("\n")
     }
 
+    suspend fun exportHighlightsCsv(dao: AthenaeumDao): String {
+        fun cell(value: String) = "\"" + value.replace("\"", "\"\"").replace("\r", " ").replace("\n", " ") + "\""
+        val books = dao.backupBooks().associateBy { it.id }
+        val rows = mutableListOf("Book,Author,Location,Colour,Highlight,Note,Created at")
+        dao.backupAnnotations().sortedBy { it.createdAt }.forEach { item ->
+            val book = books[item.bookId]
+            rows += listOf(book?.title.orEmpty(), book?.author.orEmpty(), item.location.toString(), item.color, item.quote, item.note, item.createdAt.toString()).joinToString(",") { cell(it) }
+        }
+        return rows.joinToString("\n")
+    }
+
     suspend fun export(dao: AthenaeumDao): String {
         val root = JSONObject().put("format", "athenaeum-backup").put("version", 1)
             .put("exportedAt", System.currentTimeMillis())
