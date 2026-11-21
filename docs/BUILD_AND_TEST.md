@@ -1,17 +1,16 @@
 # Build and test
 
-## GitHub Actions — manual only
+## GitHub Actions — automatic CI and APK
 
 Workflow: .github/workflows/android.yml
 
-The workflow has only a workflow_dispatch trigger. It does not run on pushes or pull requests.
+The workflow runs on pushes to main, pull requests targeting main, and manual workflow_dispatch. Each run executes unit tests, assembles the debug APK and uploads the APK artifact.
 
-1. Open the repository on GitHub and select Actions.
-2. Choose Android APK.
-3. Select Run workflow, choose main, and confirm.
-4. Wait for the run to complete. Only a green Success run is a successful build.
-5. Open the run's Artifacts section and download SONORA-debug.
-6. Extract the archive and install app-debug.apk.
+1. Push a change to main or open a pull request targeting main; CI starts automatically.
+2. For a manual run, open Actions, choose Android CI and APK, then select Run workflow.
+3. Wait for unit tests and assembleDebug to complete. Only a green Success run is a successful build.
+4. Open the run's Artifacts section and download SONORA-debug.
+5. Extract the archive and install app-debug.apk.
 
 ## Local build
 
@@ -44,7 +43,7 @@ Output: app/build/outputs/apk/debug/app-debug.apk.
 - [ ] Athenaeum: import multiple EPUB/PDF/TXT/HTML/FB2/MOBI/RTF/Markdown/CBZ documents; verify persisted URI access after relaunch.
 - [ ] Athenaeum: EPUB 2/3 spine order, TOC, images/CSS, chapter navigation and saved progress.
 - [ ] Athenaeum: PDF page navigation, OCR, bookmarks, annotations, Commonplace Book, TTS and reading-session statistics.
-- [ ] Athenaeum: JSON archive, portable ZIP backup/restore with ebook/cover files, CSV export, ISBN lookup and all three home-screen widgets.
+- [ ] Athenaeum: JSON archive, portable ZIP backup/restore with ebook/cover files, CSV export, ISBN lookup and all five home-screen widgets.
 - [ ] Athenaeum: verify legacy database migrations from schema versions 1 and 2.
 
 ## What CI does not prove
