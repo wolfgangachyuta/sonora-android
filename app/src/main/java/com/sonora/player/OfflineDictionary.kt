@@ -7,8 +7,10 @@ import java.io.InputStream
 /** User-imported TSV dictionary packs remain fully local and searchable offline. */
 object OfflineDictionary {
     fun importPack(context: Context, input: InputStream): Int {
+        val databaseFile = context.getDatabasePath("athenaeum_dictionary.db")
+        databaseFile.parentFile?.mkdirs()
         val database = SQLiteDatabase.openDatabase(
-            context.getDatabasePath("athenaeum_dictionary.db").absolutePath,
+            databaseFile.absolutePath,
             null,
             SQLiteDatabase.OPEN_READWRITE or SQLiteDatabase.CREATE_IF_NECESSARY
         )
