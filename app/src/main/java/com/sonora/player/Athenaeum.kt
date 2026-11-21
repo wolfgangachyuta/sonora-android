@@ -310,6 +310,15 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
             }.onFailure { message = "CSV export failed: " + it.message }
         }
     }
+    val highlightsCsvLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        if (uri != null) scope.launch {
+            runCatching {
+                val csv = AthenaeumBackup.exportHighlightsCsv(dao)
+                context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(csv) } ?: error("Could not create highlights file")
+                message = "Highlights and annotations exported."
+            }.onFailure { message = "Highlights export failed: " + it.message }
+        }
+    }
     val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) scope.launch {
             runCatching {
@@ -406,6 +415,7 @@ fun AthenaeumScreen(onBack: () -> Unit = {}) {
                     DropdownMenuItem(text = { Text("Restore portable ZIP") }, onClick = { showBackupMenu = false; portableRestoreLauncher.launch(arrayOf("application/zip", "application/octet-stream")) })
                     DropdownMenuItem(text = { Text("Export library JSON archive") }, onClick = { showBackupMenu = false; exportLauncher.launch("athenaeum-backup.json") })
                     DropdownMenuItem(text = { Text("Export catalogue CSV") }, onClick = { showBackupMenu = false; csvLauncher.launch("athenaeum-catalogue.csv") })
+                    DropdownMenuItem(text = { Text("Export highlights CSV") }, onClick = { showBackupMenu = false; highlightsCsvLauncher.launch("athenaeum-highlights.csv") })
                     DropdownMenuItem(text = { Text("Restore / merge JSON archive") }, onClick = { showBackupMenu = false; restoreLauncher.launch(arrayOf("application/json", "text/json", "text/plain")) })
                     DropdownMenuItem(text = { Text("Configure WebDAV cloud sync") }, onClick = { showBackupMenu = false; showCloudSync = true; cloudMessage = "" })
                 }
