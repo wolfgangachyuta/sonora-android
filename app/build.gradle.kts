@@ -5,6 +5,12 @@ plugins {
     id("com.google.devtools.ksp") version "2.2.20-2.0.4"
 }
 
+val releaseStoreFile = providers.environmentVariable("SONORA_RELEASE_STORE_FILE").orNull
+val releaseStorePassword = providers.environmentVariable("SONORA_RELEASE_STORE_PASSWORD").orNull
+val releaseKeyAlias = providers.environmentVariable("SONORA_RELEASE_KEY_ALIAS").orNull
+val releaseKeyPassword = providers.environmentVariable("SONORA_RELEASE_KEY_PASSWORD").orNull
+val releaseSigningReady = listOf(releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword).all { !it.isNullOrBlank() }
+
 android {
     namespace = "com.sonora.player"
     compileSdk = 36
@@ -13,8 +19,26 @@ android {
         applicationId = "com.sonora.player"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.5.0"
+        versionCode = 6
+        versionName = "1.0.0"
+    }
+
+    signingConfigs {
+        create("release") {
+            if (releaseSigningReady) {
+                storeFile = file(releaseStoreFile!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = false
+            if (releaseSigningReady) signingConfig = signingConfigs.getByName("release")
+        }
     }
 
     buildFeatures { compose = true }
